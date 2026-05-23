@@ -34,12 +34,18 @@ def plot_price_distribution(games: pd.DataFrame, save_path: str) -> None:
 
 
 def plot_rating_distribution(games: pd.DataFrame, save_path: str) -> None:
-    """评分分布直方图 + KDE。"""
-    ratings = games["rating"].dropna()
+    """评分分布：数值型用直方图+KDE，文本型用柱状图。"""
+    rating_series = games["rating"].dropna()
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    sns.histplot(ratings, bins=40, kde=True, color="steelblue", edgecolor="white", ax=ax)
-    ax.set_xlabel("Rating")
+    if pd.api.types.is_numeric_dtype(rating_series):
+        sns.histplot(rating_series, bins=40, kde=True, color="steelblue", edgecolor="white", ax=ax)
+        ax.set_xlabel("Rating")
+    else:
+        counts = rating_series.value_counts()
+        sns.barplot(x=counts.values, y=counts.index, color="steelblue", ax=ax)
+        ax.set_xlabel("Game Count")
+        ax.set_ylabel("Rating Category")
     ax.set_ylabel("Game Count")
     ax.set_title("Game Rating Distribution")
 
@@ -49,18 +55,25 @@ def plot_rating_distribution(games: pd.DataFrame, save_path: str) -> None:
 
 
 def plot_genre_bar(games: pd.DataFrame, save_path: str) -> None:
-    """Top 20 游戏类型条形图。genres 列是 list 类型，需要展开统计。"""
-    # Explode the genres list column and count occurrences
-    all_genres = games["genres"].explode().dropna()
-    # Filter out empty strings if any
-    all_genres = all_genres[all_genres != ""]
+    """Top 20 游戏类型/标签条形图。优先用 genres，为空时回退到 tags。"""
+    # Use genres if non-empty, otherwise fall back to tags (actual data only has tags)
+    if "genres" in games.columns:
+        all_genres = games["genres"].explode().dropna()
+        all_genres = all_genres[all_genres != ""]
+    else:
+        all_genres = pd.Series(dtype=str)
+
+    if len(all_genres) == 0 and "tags" in games.columns:
+        all_genres = games["tags"].explode().dropna()
+        all_genres = all_genres[all_genres != ""]
+
     genre_counts = all_genres.value_counts().head(20)
 
     fig, ax = plt.subplots(figsize=(12, 8))
     genre_counts.plot(kind="barh", color="steelblue", edgecolor="white", ax=ax)
     ax.set_xlabel("Game Count")
-    ax.set_ylabel("Genre")
-    ax.set_title("Top 20 Game Genres")
+    ax.set_ylabel("Genre / Tag")
+    ax.set_title("Top 20 Game Genres / Tags")
     ax.invert_yaxis()
 
     fig.tight_layout()

@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+import numpy as np
 import pandas as pd
 
 from src.utils.config import Config
@@ -100,7 +101,7 @@ def main():
     print(f"推荐量集中度: Gini={conc['gini']:.3f}, Top1%={conc['top_1pct']:.1%}, Top5%={conc['top_5pct']:.1%}, Top20%={conc['top_20pct']:.1%}")
 
     extreme = analyze_extreme_users(recs_df)
-    print(f"极端用户: 纯好评={extreme['all_positive_pct']:.1%}, 纯差评={extreme['all_negative_pct']:.1%}")
+    print(f"极端用户: 纯好评={extreme['all_positive']['pct']:.1f}%, 纯差评={extreme['all_negative']['pct']:.1f}%")
 
     users_df = compute_user_activity_tiers(users_df)
     print(f"活跃度分层: {users_df['activity_tier'].value_counts().to_dict()}")
@@ -179,7 +180,19 @@ def main():
             str(config.figure_dir / "feature_importance.png"),
         )
 
-    plot_partial_dependence(best_model, X_train, X_train.columns[:4].tolist(),
+    # Pick top-importance features with enough unique values for PDP
+    top4_features = []
+    if hasattr(best_model, "feature_importances_"):
+        top_indices = np.argsort(best_model.feature_importances_)[::-1]
+        for idx in top_indices:
+            col = X_train.columns[idx]
+            if X_train[col].nunique() > 5:
+                top4_features.append(col)
+            if len(top4_features) >= 4:
+                break
+    if len(top4_features) < 2:
+        top4_features = [c for c in X_train.columns[:4] if X_train[c].nunique() > 5]
+    plot_partial_dependence(best_model, X_train, top4_features,
                             str(config.figure_dir / "partial_dependence.png"))
     plot_learning_curve(best_model, X_train, y_train,
                         str(config.figure_dir / "learning_curve.png"))

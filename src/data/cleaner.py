@@ -10,9 +10,19 @@ def clean_games(df: pd.DataFrame) -> pd.DataFrame:
     if before != len(df):
         print(f"games: 删除 title 缺失 {before - len(df)} 行")
 
-    # Fill null rating with median
-    if df["rating"].isnull().any():
-        df["rating"] = df["rating"].fillna(df["rating"].median())
+    # Handle rating: numeric (test fixtures) vs text (real Steam data)
+    rating_is_numeric = pd.api.types.is_numeric_dtype(df["rating"])
+
+    if rating_is_numeric:
+        if df["rating"].isnull().any():
+            df["rating"] = df["rating"].fillna(df["rating"].median())
+        outliers = df[(df["rating"] < 0) | (df["rating"] > 1)]
+        if len(outliers) > 0:
+            print(f"games: 评分异常值 {len(outliers)} 条 (rating 不在 [0, 1] 范围内)")
+    else:
+        if df["rating"].isnull().any():
+            df["rating"] = df["rating"].fillna("Unknown")
+        print(f"games: rating 为文本类型（{df['rating'].nunique()} 个不同值），已跳过数值清洗")
 
     # Fill null date_release with median year
     if df["date_release"].isnull().any():
@@ -23,11 +33,6 @@ def clean_games(df: pd.DataFrame) -> pd.DataFrame:
     df["date_release"] = pd.to_datetime(df["date_release"], errors="coerce")
     df["release_year"] = df["date_release"].dt.year
     df["release_month"] = df["date_release"].dt.month
-
-    # Detect rating outliers
-    outliers = df[(df["rating"] < 0) | (df["rating"] > 1)]
-    if len(outliers) > 0:
-        print(f"games: 评分异常值 {len(outliers)} 条 (rating 不在 [0, 1] 范围内)")
 
     # Deduplicate on app_id
     before = len(df)

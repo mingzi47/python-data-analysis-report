@@ -123,7 +123,7 @@ def plot_partial_dependence(model, X, features, save_path: str) -> None:
     save_path : str
     """
     display = PartialDependenceDisplay.from_estimator(
-        model, X, features, grid_resolution=20
+        model, X.astype(float), features, grid_resolution=20
     )
     display.figure_.tight_layout()
     display.figure_.savefig(save_path, dpi=150)
