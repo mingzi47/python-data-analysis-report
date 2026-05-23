@@ -14,3 +14,10 @@ wheels/
 
 # Generated outputs
 outputs/*
+
+# PPT projects (only exports are tracked)
+projects/*
+!projects/*/
+projects/*/*
+!projects/*/exports/
+!projects/*/exports/**
