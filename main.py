@@ -11,12 +11,20 @@ from src.features.builder import build_features, build_preprocessor
 from src.models.trainer import split_data, train_logistic_regression, train_random_forest, train_xgboost
 from src.models.baseline import evaluate_baselines
 from src.models.evaluator import evaluate_model, compare_models
+from src.analysis.helpers import (
+    compute_concentration_metrics,
+    analyze_extreme_users,
+    compute_user_activity_tiers,
+)
 from src.visualization.eda_plots import (
     plot_price_distribution,
     plot_rating_distribution,
     plot_genre_bar,
     plot_release_timeline,
     plot_user_activity,
+    plot_user_activity_distribution,
+    plot_user_recommend_rate_distribution,
+    plot_purchase_vs_reviews,
     plot_long_tail,
     plot_correlation_heatmap,
 )
@@ -83,6 +91,19 @@ def main():
     plot_user_activity(users_df, str(config.figure_dir / "user_activity.png"))
     plot_long_tail(recs_df, str(config.figure_dir / "long_tail.png"))
     plot_correlation_heatmap(games_df, str(config.figure_dir / "correlation_heatmap.png"))
+    plot_user_activity_distribution(users_df, str(config.figure_dir / "user_activity_distribution.png"))
+    plot_user_recommend_rate_distribution(recs_df, str(config.figure_dir / "user_recommend_rate.png"))
+    plot_purchase_vs_reviews(users_df, str(config.figure_dir / "purchase_vs_reviews.png"))
+
+    # 分析指标
+    conc = compute_concentration_metrics(recs_df)
+    print(f"推荐量集中度: Gini={conc['gini']:.3f}, Top1%={conc['top_1pct']:.1%}, Top5%={conc['top_5pct']:.1%}, Top20%={conc['top_20pct']:.1%}")
+
+    extreme = analyze_extreme_users(recs_df)
+    print(f"极端用户: 纯好评={extreme['all_positive_pct']:.1%}, 纯差评={extreme['all_negative_pct']:.1%}")
+
+    users_df = compute_user_activity_tiers(users_df)
+    print(f"活跃度分层: {users_df['activity_tier'].value_counts().to_dict()}")
     print("EDA 图表已生成")
 
     # ============================================================
