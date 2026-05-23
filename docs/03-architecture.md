@@ -32,6 +32,10 @@ report/
 │   │   ├── __init__.py
 │   │   └── builder.py              # 特征构造 + ColumnTransformer 流水线
 │   │
+│   ├── analysis/                    # 分析辅助：集中度、极端用户、活跃度分层
+│   │   ├── __init__.py
+│   │   └── helpers.py               # 计算 Gini 系数、识别极端用户、活跃度分层
+│   │
 │   ├── models/                     # 模型层：训练、调参、评估
 │   │   ├── __init__.py
 │   │   ├── baseline.py             # DummyClassifier + 简单规则基线
@@ -72,7 +76,12 @@ def main():
     datasets = load_all_data(config)
     datasets = clean_all_data(datasets)
 
-    # 阶段 3-4: EDA + 可视化
+    # 阶段 3: 分析辅助
+    concentration = compute_concentration_metrics(datasets["recommendations"])
+    extreme = analyze_extreme_users(datasets["recommendations"])
+    datasets["users"] = compute_user_activity_tiers(datasets["users"])
+
+    # 阶段 4: EDA + 可视化
     run_eda(datasets, config)
     generate_eda_figures(datasets, config)
 
@@ -147,6 +156,19 @@ def build_preprocessor() -> ColumnTransformer:
     """构建 sklearn 特征处理流水线（StandardScaler + OneHotEncoder）"""
 ```
 
+### `src/analysis/helpers.py` — 分析辅助
+
+```python
+def compute_concentration_metrics(recommendations: pd.DataFrame) -> dict:
+    """计算推荐量集中度：Gini系数、Top1%/5%/10%/20%占比"""
+
+def analyze_extreme_users(recommendations: pd.DataFrame) -> dict:
+    """识别极端用户：纯好评/纯差评用户占比、平均评价数、按评价数分桶"""
+
+def compute_user_activity_tiers(users: pd.DataFrame) -> pd.DataFrame:
+    """按产品数分位数划分活跃度层级：low/medium/high/extreme"""
+```
+
 ### `src/models/baseline.py` — 基线模型
 
 ```python
@@ -200,6 +222,15 @@ def plot_release_timeline(games: pd.DataFrame, save_path: str):
 
 def plot_user_activity(users: pd.DataFrame, save_path: str):
     """用户评论数/购买数分布（log-log）"""
+
+def plot_user_activity_distribution(users: pd.DataFrame, save_path: str):
+    """用户产品数/评论数双直方图（log轴）"""
+
+def plot_user_recommend_rate_distribution(recommendations: pd.DataFrame, save_path: str):
+    """用户推荐率分布直方图 + 0.5/均值标注线"""
+
+def plot_purchase_vs_reviews(users: pd.DataFrame, save_path: str):
+    """购买数 vs 评论数散点图（log-log）+ Spearman相关 + y=x线"""
 
 def plot_long_tail(recommendations: pd.DataFrame, save_path: str):
     """游戏推荐量长尾分布"""
