@@ -14,6 +14,10 @@ report/
 ├── pyproject.toml                  # 项目元数据和依赖声明
 ├── README.md                       # 项目概览 + 快速开始
 │
+├── scripts/                        # 交互式管理脚本
+│   ├── run.sh                      # 运行管理（完整/快速/EDA/建模/清理）
+│   └── test.sh                     # 测试管理（全部/模块/失败重跑/快速/单函数）
+│
 ├── docs/                           # 文档
 │   ├── 01-background.md            # 项目背景与研究问题
 │   ├── 02-methodology.md           # 各阶段分析方法
@@ -272,6 +276,43 @@ class Config:
     figure_dir: Path = Path("outputs/figures")
     model_dir: Path = Path("outputs/models")
 ```
+
+### `scripts/run.sh` — 交互式运行管理
+
+支持两种调用模式：
+- **命令行模式：** `./scripts/run.sh full|quick|eda|ml|clean` 直接执行
+- **交互模式：** 无参数运行显示选项菜单
+
+| 命令 | 功能 | 样本量 | 预计耗时 |
+|------|------|--------|----------|
+| `full` | 完整 8 阶段流水线 | 500K | 3-5 分钟 |
+| `quick` | 快速验证（通过 `python -c` 覆写 `Config.sample_size`） | 50K | ~30 秒 |
+| `eda` | 阶段 1-4：数据加载 → 清洗 → EDA 图表 → 分析指标 | 500K | 1-2 分钟 |
+| `ml` | 阶段 5-8：特征工程 → 建模 → 评估 → 结论 | 500K | 2-4 分钟 |
+| `clean` | 清空 `outputs/figures/` 和 `outputs/models/` | — | <1 秒 |
+
+关键设计：
+- 通过 `.venv/bin/python` 显式指定解释器，不依赖 shell 的 `python` 别名
+- `set -euo pipefail` 确保任何命令失败立即终止
+- `eda` 和 `ml` 模式通过 `python -c` 内联执行，精确控制运行范围
+- `quick` 模式覆写 `Config.sample_size=50_000`，用于快速回归验证
+
+### `scripts/test.sh` — 交互式测试管理
+
+支持命令行模式和交互模式，pytest 额外参数透传。
+
+| 命令 | 功能 |
+|------|------|
+| `all` | 运行所有 88 个测试 |
+| `module [name]` | 运行指定模块（不指定则交互选择） |
+| `failed` | `--lf` 仅重跑上次失败的测试 |
+| `quick` | `-k "not figure and not plot"` 跳过图表验证 |
+| `single [module] [func]` | 运行单个测试函数（不指定则交互选择） |
+
+关键设计：
+- 自动扫描 `tests/test_*.py` 并以序号菜单呈现
+- 通过 `pytest --collect-only -q` 解析测试函数列表
+- 额外参数直接透传给 pytest：`./scripts/test.sh all -x --tb=short`
 
 ## 数据流
 

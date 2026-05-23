@@ -17,12 +17,27 @@ Data analysis project using the `antonkozyriev/game-recommendations-on-steam` da
 ## Running
 
 ```bash
+# 完整流水线
 python main.py
+
+# 交互式脚本
+./scripts/run.sh          # 运行管理：完整/快速/EDA/建模/清理
+./scripts/test.sh         # 测试管理：全部/模块/失败重跑/快速/单函数
+
+# 常用快捷命令
+./scripts/run.sh quick    # 快速运行 (50K 样本，~30s)
+./scripts/run.sh eda      # 仅 EDA 阶段
+./scripts/test.sh all     # 全部 88 个测试
+./scripts/test.sh failed  # 仅重跑上次失败的
 ```
 
 ## Architecture
 
 ```
+scripts/
+├── run.sh              # 交互式运行管理（bash）
+└── test.sh             # 交互式测试管理（bash）
+
 src/
 ├── analysis/
 │   └── helpers.py       # Gini coefficient, extreme user detection, activity tiers

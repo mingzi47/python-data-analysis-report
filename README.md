@@ -13,9 +13,30 @@
 ## 快速开始
 
 ```bash
-pip install kagglehub pandas numpy matplotlib seaborn scikit-learn xgboost
+# 1. 安装依赖
+pip install kagglehub pandas numpy matplotlib seaborn scikit-learn xgboost scipy
+
+# 2. 运行完整流水线
 python main.py
+
+# 或使用交互式脚本
+./scripts/run.sh          # 交互菜单：完整/快速/EDA/建模/清理
+./scripts/test.sh         # 交互菜单：全部/模块/失败重跑/快速/单函数
 ```
+
+### 脚本命令速查
+
+| 命令 | 用途 |
+|------|------|
+| `./scripts/run.sh full` | 完整流水线 (500K 样本) |
+| `./scripts/run.sh quick` | 快速运行 (50K 样本，~30s) |
+| `./scripts/run.sh eda` | 仅 EDA 阶段（数据→清洗→可视化） |
+| `./scripts/run.sh ml` | 仅建模阶段（特征→训练→评估） |
+| `./scripts/run.sh clean` | 清理 outputs/ 目录 |
+| `./scripts/test.sh all` | 运行所有 88 个测试 |
+| `./scripts/test.sh module test_loader` | 指定测试模块 |
+| `./scripts/test.sh failed` | 仅重跑上次失败的测试 |
+| `./scripts/test.sh quick` | 快速测试（跳过图表验证） |
 
 ## 数据集
 
@@ -53,6 +74,9 @@ python main.py
 ```
 report/
 ├── main.py                     # 入口：编排完整流水线
+├── scripts/                    # 交互式管理脚本
+│   ├── run.sh                  #   运行管理（完整/快速/EDA/建模/清理）
+│   └── test.sh                 #   测试管理（全部/模块/失败重跑/快速/单函数）
 ├── docs/                       # 项目文档（9 份）
 ├── src/                        # 源代码
 │   ├── analysis/helpers.py     #   分析辅助函数
