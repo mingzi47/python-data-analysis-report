@@ -268,10 +268,11 @@ def plot_learning_curve(model, X, y, save_path: str):
 @dataclass
 class Config:
     random_seed: int = 42
-    sample_size: int = 500_000           # 开发阶段采样量
+    sample_size: int | None = 500_000    # 采样量，None 为全量
     test_size: float = 0.2               # 测试集比例
     cv_folds: int = 3                    # 交叉验证折数
     cv_iter: int = 20                    # RandomSearch 迭代次数
+    data_dir: Path = Path("data")        # 数据集下载目录（gitignore）
     output_dir: Path = Path("outputs")
     figure_dir: Path = Path("outputs/figures")
     model_dir: Path = Path("outputs/models")

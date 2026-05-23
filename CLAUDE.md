@@ -40,6 +40,7 @@ scripts/
 ├── run.sh              # 交互式运行管理（bash）
 └── test.sh             # 交互式测试管理（bash）
 
+data/                       # 数据集下载目录（gitignore）
 src/
 ├── analysis/
 │   └── helpers.py       # Gini coefficient, extreme user detection, activity tiers

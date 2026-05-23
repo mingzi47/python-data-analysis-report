@@ -45,7 +45,8 @@ def load_and_clean(config):
     print("阶段 1: 数据加载")
     print("=" * 60)
 
-    data_path = download_dataset()
+    os.makedirs(config.data_dir, exist_ok=True)
+    data_path = download_dataset(config.data_dir)
     print(f"数据集路径: {data_path}")
 
     games_df = load_games(data_path / "games.csv")

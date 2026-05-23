@@ -96,12 +96,12 @@ class TestDownloadDataset:
     def test_returns_path_object(self, monkeypatch):
         import kagglehub
 
-        def mock_download(dataset):
-            return "/fake/path/to/dataset"
+        def mock_download(dataset, output_dir=None):
+            return output_dir if output_dir else "/fake/path/to/dataset"
 
         monkeypatch.setattr(kagglehub, "dataset_download", mock_download)
 
         from src.data.loader import download_dataset
-        path = download_dataset()
+        path = download_dataset(Path("/tmp/test_data"))
 
         assert isinstance(path, Path)

@@ -74,7 +74,8 @@ uv run python main.py
 
 ```
 report/
-├── main.py                     # 入口：编排完整流水线
+├── main.py                     # 入口：编排完整流水线，支持 CLI 参数
+├── data/                        # 数据集下载目录（gitignore，kagglehub 自动下载）
 ├── scripts/                    # 交互式管理脚本
 │   ├── run.sh                  #   运行管理（完整/快速/EDA/建模/全量/清理）
 │   └── test.sh                 #   测试管理（全部/模块/失败重跑/快速/单函数）

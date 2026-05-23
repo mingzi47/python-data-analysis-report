@@ -9,6 +9,7 @@ class Config:
     test_size: float = 0.2
     cv_folds: int = 3
     cv_iter: int = 20
+    data_dir: Path = Path("data")
     output_dir: Path = Path("outputs")
     figure_dir: Path = Path("outputs/figures")
     model_dir: Path = Path("outputs/models")

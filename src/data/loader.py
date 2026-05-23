@@ -3,10 +3,13 @@ import pandas as pd
 from pathlib import Path
 
 
-def download_dataset() -> Path:
+def download_dataset(output_dir: Path) -> Path:
     import kagglehub
 
-    path_str = kagglehub.dataset_download("antonkozyriev/game-recommendations-on-steam")
+    path_str = kagglehub.dataset_download(
+        "antonkozyriev/game-recommendations-on-steam",
+        output_dir=str(output_dir),
+    )
     return Path(path_str)
 
 
