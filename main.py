@@ -1,5 +1,6 @@
 """游戏推荐数据分析 — 主流水线入口"""
 
+import argparse
 import os
 from pathlib import Path
 import numpy as np
@@ -8,7 +9,7 @@ import pandas as pd
 from src.utils.config import Config
 from src.data.loader import download_dataset, load_games, load_users, load_recommendations, load_metadata
 from src.data.cleaner import clean_games, clean_users, clean_recommendations, merge_metadata
-from src.features.builder import build_features, build_preprocessor
+from src.features.builder import build_features
 from src.models.trainer import split_data, train_logistic_regression, train_random_forest, train_xgboost
 from src.models.baseline import evaluate_baselines
 from src.models.evaluator import evaluate_model, compare_models
@@ -38,14 +39,8 @@ from src.visualization.model_plots import (
 )
 
 
-def main():
-    config = Config()
-    os.makedirs(config.figure_dir, exist_ok=True)
-    os.makedirs(config.model_dir, exist_ok=True)
-
-    # ============================================================
-    # 阶段 1: 数据加载
-    # ============================================================
+def load_and_clean(config):
+    """阶段 1-2: 数据加载与清洗"""
     print("=" * 60)
     print("阶段 1: 数据加载")
     print("=" * 60)
@@ -65,9 +60,6 @@ def main():
     metadata_df = load_metadata(data_path / "games_metadata.json")
     print(f"metadata: {metadata_df.shape}")
 
-    # ============================================================
-    # 阶段 2: 数据清洗
-    # ============================================================
     print("\n" + "=" * 60)
     print("阶段 2: 数据清洗")
     print("=" * 60)
@@ -78,9 +70,11 @@ def main():
     games_df = merge_metadata(games_df, metadata_df)
     print(f"清洗后 games: {games_df.shape}, users: {users_df.shape}, recs: {recs_df.shape}")
 
-    # ============================================================
-    # 阶段 3-4: EDA 可视化
-    # ============================================================
+    return games_df, users_df, recs_df
+
+
+def run_eda(games_df, users_df, recs_df, config):
+    """阶段 3-4: EDA 可视化与分析"""
     print("\n" + "=" * 60)
     print("阶段 3-4: EDA 可视化")
     print("=" * 60)
@@ -96,7 +90,6 @@ def main():
     plot_user_recommend_rate_distribution(recs_df, str(config.figure_dir / "user_recommend_rate.png"))
     plot_purchase_vs_reviews(users_df, str(config.figure_dir / "purchase_vs_reviews.png"))
 
-    # 分析指标
     conc = compute_concentration_metrics(recs_df)
     print(f"推荐量集中度: Gini={conc['gini']:.3f}, Top1%={conc['top_1pct']:.1%}, Top5%={conc['top_5pct']:.1%}, Top20%={conc['top_20pct']:.1%}")
 
@@ -107,9 +100,9 @@ def main():
     print(f"活跃度分层: {users_df['activity_tier'].value_counts().to_dict()}")
     print("EDA 图表已生成")
 
-    # ============================================================
-    # 阶段 5: 特征工程
-    # ============================================================
+
+def run_modeling(games_df, users_df, recs_df, config):
+    """阶段 5-8: 特征工程、建模、评估、结论"""
     print("\n" + "=" * 60)
     print("阶段 5: 特征工程")
     print("=" * 60)
@@ -117,9 +110,6 @@ def main():
     X, y, groups = build_features(recs_df, games_df, users_df)
     print(f"特征矩阵: {X.shape}, 目标变量: {y.shape}")
 
-    # ============================================================
-    # 阶段 6: 建模
-    # ============================================================
     print("\n" + "=" * 60)
     print("阶段 6: 建模")
     print("=" * 60)
@@ -127,34 +117,23 @@ def main():
     X_train, X_test, y_train, y_test = split_data(X, y, groups, test_size=config.test_size)
     print(f"训练集: {X_train.shape}, 测试集: {X_test.shape}")
 
-    # 基线模型
     baseline_results = evaluate_baselines(X_train, y_train, X_test, y_test)
     print("\n基线模型结果:")
     for name, metrics in baseline_results.items():
         print(f"  {name}: Accuracy={metrics['accuracy']:.3f}, ROC-AUC={metrics['roc_auc']:.3f}")
 
-    # 机器学习模型
     print("\n训练逻辑回归...")
     lr = train_logistic_regression(X_train, y_train)
-
     print("训练随机森林...")
     rf = train_random_forest(X_train, y_train)
-
     print("训练 XGBoost...")
     xgb = train_xgboost(X_train, y_train)
 
-    # ============================================================
-    # 阶段 7: 模型评估
-    # ============================================================
     print("\n" + "=" * 60)
     print("阶段 7: 模型评估")
     print("=" * 60)
 
-    models = {
-        "LogisticRegression": lr,
-        "RandomForest": rf,
-        "XGBoost": xgb,
-    }
+    models = {"LogisticRegression": lr, "RandomForest": rf, "XGBoost": xgb}
     results = {}
     for name, model in models.items():
         results[name] = evaluate_model(model, X_test, y_test)
@@ -167,7 +146,6 @@ def main():
     comparison.to_csv(config.model_dir / "comparison.csv")
     print(f"\n对比表已保存: {config.model_dir / 'comparison.csv'}")
 
-    # 模型可视化
     plot_roc_curves(models, X_test, y_test, str(config.figure_dir / "roc_curves.png"))
     best_model = rf
     plot_confusion_matrix(best_model, X_test, y_test, str(config.figure_dir / "confusion_matrix.png"))
@@ -180,7 +158,6 @@ def main():
             str(config.figure_dir / "feature_importance.png"),
         )
 
-    # Pick top-importance features with enough unique values for PDP
     top4_features = []
     if hasattr(best_model, "feature_importances_"):
         top_indices = np.argsort(best_model.feature_importances_)[::-1]
@@ -198,9 +175,6 @@ def main():
                         str(config.figure_dir / "learning_curve.png"))
     print("模型评估图表已生成")
 
-    # ============================================================
-    # 阶段 8: 结论
-    # ============================================================
     print("\n" + "=" * 60)
     print("阶段 8: 分析总结")
     print("=" * 60)
@@ -218,6 +192,44 @@ def main():
 
     print(f"\n所有图表已保存至: {config.figure_dir}")
     print(f"模型对比表已保存至: {config.model_dir / 'comparison.csv'}")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="游戏推荐数据分析流水线")
+    parser.add_argument("--mode", choices=["full", "eda", "ml"], default="full",
+                        help="运行模式: full=完整流水线, eda=仅EDA, ml=仅建模 (default: full)")
+    parser.add_argument("--sample-size", type=int, default=None,
+                        help="样本量 (default: 500000)")
+    parser.add_argument("--quick", action="store_true",
+                        help="快速模式，等价于 --sample-size 50000")
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    sample_size = args.sample_size
+    if args.quick:
+        sample_size = 50_000
+    elif sample_size is None:
+        sample_size = 500_000
+
+    config = Config(sample_size=sample_size)
+    os.makedirs(config.figure_dir, exist_ok=True)
+    os.makedirs(config.model_dir, exist_ok=True)
+
+    print(f"运行模式: {args.mode}, 样本量: {config.sample_size}")
+
+    if args.mode in ("full", "eda", "ml"):
+        games_df, users_df, recs_df = load_and_clean(config)
+
+    if args.mode in ("full", "eda"):
+        run_eda(games_df, users_df, recs_df, config)
+
+    if args.mode in ("full", "ml"):
+        run_modeling(games_df, users_df, recs_df, config)
+
+    print("\n流水线执行完成")
 
 
 if __name__ == "__main__":

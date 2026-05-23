@@ -286,16 +286,15 @@ class Config:
 | 命令 | 功能 | 样本量 | 预计耗时 |
 |------|------|--------|----------|
 | `full` | 完整 8 阶段流水线 | 500K | 3-5 分钟 |
-| `quick` | 快速验证（通过 `python -c` 覆写 `Config.sample_size`） | 50K | ~30 秒 |
+| `quick` | 快速验证（`--quick` 参数覆写 `Config.sample_size=50_000`） | 50K | ~30 秒 |
 | `eda` | 阶段 1-4：数据加载 → 清洗 → EDA 图表 → 分析指标 | 500K | 1-2 分钟 |
 | `ml` | 阶段 5-8：特征工程 → 建模 → 评估 → 结论 | 500K | 2-4 分钟 |
 | `clean` | 清空 `outputs/figures/` 和 `outputs/models/` | — | <1 秒 |
 
 关键设计：
-- 通过 `uv run python` 显式指定 uv 管理的解释器，不依赖 shell 的 `python` 别名
+- Python 逻辑全部在 `main.py` 中，通过 `--mode full|eda|ml` 和 `--quick` CLI 参数控制
+- `run.sh` 仅做薄包装层（颜色输出、耗时提示、菜单交互），直接调用 `uv run python main.py <args>`
 - `set -euo pipefail` 确保任何命令失败立即终止
-- `eda` 和 `ml` 模式通过 `uv run python -c` 内联执行，精确控制运行范围
-- `quick` 模式覆写 `Config.sample_size=50_000`，用于快速回归验证
 
 ### `scripts/test.sh` — 交互式测试管理
 
