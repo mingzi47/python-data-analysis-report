@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from pathlib import Path
+from scipy.stats import spearmanr
 
 
 def plot_price_distribution(games: pd.DataFrame, save_path: str) -> None:
@@ -130,6 +131,77 @@ def plot_correlation_heatmap(df: pd.DataFrame, save_path: str) -> None:
         cbar_kws={"shrink": 0.8}, ax=ax
     )
     ax.set_title("Correlation Heatmap of Numeric Variables")
+
+    fig.tight_layout()
+    fig.savefig(save_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_user_activity_distribution(users: pd.DataFrame, save_path: str) -> None:
+    """用户产品数和评论数分布直方图（双子图，log y轴）。"""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    ax1.hist(users["products"].dropna(), bins=50, edgecolor="white", color="steelblue", alpha=0.85)
+    ax1.set_yscale("log")
+    ax1.set_xlabel("Products Owned")
+    ax1.set_ylabel("User Count (log scale)")
+    ax1.set_title("User Products Distribution")
+    ax1.yaxis.set_major_formatter(ticker.ScalarFormatter())
+
+    ax2.hist(users["reviews"].dropna(), bins=50, edgecolor="white", color="steelblue", alpha=0.85)
+    ax2.set_yscale("log")
+    ax2.set_xlabel("Reviews Written")
+    ax2.set_ylabel("User Count (log scale)")
+    ax2.set_title("User Reviews Distribution")
+    ax2.yaxis.set_major_formatter(ticker.ScalarFormatter())
+
+    fig.tight_layout()
+    fig.savefig(save_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_user_recommend_rate_distribution(recommendations: pd.DataFrame, save_path: str) -> None:
+    """用户推荐率分布直方图，标注0.5分界线和总体均值。"""
+    user_rates = recommendations.groupby("user_id")["is_recommended"].mean()
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.hist(user_rates, bins=40, edgecolor="white", color="steelblue", alpha=0.85)
+
+    overall_mean = user_rates.mean()
+    ax.axvline(x=0.5, color="orange", linestyle="--", linewidth=2, label="Neutral (0.5)")
+    ax.axvline(x=overall_mean, color="red", linestyle="--", linewidth=2,
+               label=f"Overall Mean ({overall_mean:.3f})")
+
+    ax.set_xlabel("Recommend Rate")
+    ax.set_ylabel("User Count")
+    ax.set_title("User Recommend Rate Distribution")
+    ax.legend()
+
+    fig.tight_layout()
+    fig.savefig(save_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_purchase_vs_reviews(users: pd.DataFrame, save_path: str) -> None:
+    """产品数 vs 评论数散点图（log-log轴），含Spearman相关系数和y=x参考线。"""
+    # Filter out zeros for log scale and meaningful correlation
+    mask = (users["products"] > 0) & (users["reviews"] > 0)
+    products = users.loc[mask, "products"]
+    reviews = users.loc[mask, "reviews"]
+
+    corr, _ = spearmanr(products, reviews)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.scatter(products, reviews, alpha=0.5, color="steelblue", edgecolors="none", s=20)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("Products Owned (log scale)")
+    ax.set_ylabel("Reviews Written (log scale)")
+    ax.set_title(f"Products vs Reviews (Spearman r = {corr:.3f})")
+    ax.grid(True, alpha=0.3)
+
+    # y=x reference line (use two points instead of slope for log-log compatibility)
+    ax.axline((1, 1), (100, 100), color="gray", linestyle="--", alpha=0.7)
 
     fig.tight_layout()
     fig.savefig(save_path, dpi=150)
