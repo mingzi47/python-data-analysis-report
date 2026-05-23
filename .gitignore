@@ -21,3 +21,6 @@ projects/*
 projects/*/*
 !projects/*/exports/
 !projects/*/exports/**
+
+# macOS
+.DS_Store
