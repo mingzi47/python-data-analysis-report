@@ -16,7 +16,7 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_DIR"
-PYTHON="$PROJECT_DIR/.venv/bin/python"
+PYTHON="uv run python"
 
 # 颜色定义
 RED='\033[0;31m'
@@ -35,8 +35,8 @@ print_header() {
 }
 
 check_venv() {
-    if [ ! -f "$PYTHON" ]; then
-        echo -e "${RED}错误: 未找到虚拟环境。请先运行: python -m venv .venv && .venv/bin/pip install -r requirements.txt${NC}"
+    if ! command -v uv &>/dev/null || [ ! -d "$PROJECT_DIR/.venv" ]; then
+        echo -e "${RED}错误: 未找到 uv 或虚拟环境。请先运行: uv sync${NC}"
         exit 1
     fi
 }

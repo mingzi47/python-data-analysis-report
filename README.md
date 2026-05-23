@@ -14,10 +14,10 @@
 
 ```bash
 # 1. 安装依赖
-pip install kagglehub pandas numpy matplotlib seaborn scikit-learn xgboost scipy
+uv sync
 
 # 2. 运行完整流水线
-python main.py
+uv run python main.py
 
 # 或使用交互式脚本
 ./scripts/run.sh          # 交互菜单：完整/快速/EDA/建模/清理

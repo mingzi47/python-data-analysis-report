@@ -292,9 +292,9 @@ class Config:
 | `clean` | 清空 `outputs/figures/` 和 `outputs/models/` | — | <1 秒 |
 
 关键设计：
-- 通过 `.venv/bin/python` 显式指定解释器，不依赖 shell 的 `python` 别名
+- 通过 `uv run python` 显式指定 uv 管理的解释器，不依赖 shell 的 `python` 别名
 - `set -euo pipefail` 确保任何命令失败立即终止
-- `eda` 和 `ml` 模式通过 `python -c` 内联执行，精确控制运行范围
+- `eda` 和 `ml` 模式通过 `uv run python -c` 内联执行，精确控制运行范围
 - `quick` 模式覆写 `Config.sample_size=50_000`，用于快速回归验证
 
 ### `scripts/test.sh` — 交互式测试管理

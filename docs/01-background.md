@@ -106,7 +106,7 @@ path = kagglehub.dataset_download("antonkozyriev/game-recommendations-on-steam")
 
 ## 注意事项与技术挑战
 
-1. **数据获取：** 使用 `kagglehub` 自动下载，首次需 `pip install kagglehub`
+1. **数据获取：** 使用 `kagglehub` 自动下载（已包含在 `pyproject.toml` 依赖中）
 2. **内存管理：** `recommendations.csv` 超过 4,100 万行（约 4-5 GB），开发阶段使用 `nrows` 采样或 `chunksize` 分批
 3. **JSON 解析：** `games_metadata.json` 的 `tags` 以数组形式嵌套存储，需用 explode 展开统计或 `MultiLabelBinarizer` 展平。实际数据仅包含 `app_id`、`description`、`tags` 三个字段
 4. **数据泄漏：** 不能用简单的 `train_test_split`，必须用 `GroupShuffleSplit` 按用户分组切分

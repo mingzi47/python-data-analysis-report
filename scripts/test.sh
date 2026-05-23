@@ -16,7 +16,6 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_DIR"
-PYTHON="$PROJECT_DIR/.venv/bin/python"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -34,8 +33,8 @@ print_header() {
 }
 
 check_venv() {
-    if [ ! -f "$PYTHON" ]; then
-        echo -e "${RED}错误: 未找到虚拟环境。请先运行: python -m venv .venv && .venv/bin/pip install -r requirements.txt${NC}"
+    if ! command -v uv &>/dev/null || [ ! -d "$PROJECT_DIR/.venv" ]; then
+        echo -e "${RED}错误: 未找到 uv 或虚拟环境。请先运行: uv sync${NC}"
         exit 1
     fi
 }
@@ -48,14 +47,14 @@ get_test_modules() {
 # 获取指定模块中的所有测试函数
 get_test_functions() {
     local module="$1"
-    $PYTHON -m pytest "tests/${module}.py" --collect-only -q 2>/dev/null \
+    uv run pytest "tests/${module}.py" --collect-only -q 2>/dev/null \
         | grep -oP 'tests/\S+::\K\S+' \
         | head -20
 }
 
 run_all() {
     print_header "运行所有测试"
-    $PYTHON -m pytest tests/ -v "$@"
+    uv run pytest tests/ -v "$@"
     echo ""
     echo -e "${GREEN}✓ 测试完成${NC}"
 }
@@ -64,21 +63,21 @@ run_module() {
     local module="$1"
     shift 2>/dev/null || true
     print_header "运行测试模块: ${module}"
-    $PYTHON -m pytest "tests/${module}.py" -v "$@"
+    uv run pytest "tests/${module}.py" -v "$@"
     echo ""
     echo -e "${GREEN}✓ ${module} 测试完成${NC}"
 }
 
 run_failed() {
     print_header "运行上次失败的测试 (--lf)"
-    $PYTHON -m pytest tests/ -v --lf "$@"
+    uv run pytest tests/ -v --lf "$@"
     echo ""
     echo -e "${GREEN}✓ 测试完成${NC}"
 }
 
 run_quick() {
     print_header "快速测试（跳过图表输出验证）"
-    $PYTHON -m pytest tests/ -v -k "not figure and not plot" "$@"
+    uv run pytest tests/ -v -k "not figure and not plot" "$@"
     echo ""
     echo -e "${GREEN}✓ 快速测试完成${NC}"
 }
@@ -88,7 +87,7 @@ run_single() {
     local func="$2"
     shift 2 2>/dev/null || true
     print_header "运行单个测试: ${module}::${func}"
-    $PYTHON -m pytest "tests/${module}.py::${func}" -v "$@"
+    uv run pytest "tests/${module}.py::${func}" -v "$@"
     echo ""
     echo -e "${GREEN}✓ 测试完成${NC}"
 }

@@ -8,17 +8,18 @@ Data analysis project using the `antonkozyriev/game-recommendations-on-steam` da
 
 ## Environment
 
-- Python 3.13+ (tested on 3.14, see `.python-version`)
+- Python 3.13+（`.python-version`）
+- 包管理器：`uv`（`pyproject.toml` + `.venv/`）
 - Dependencies: `kagglehub`, `pandas`, `numpy`, `matplotlib`, `seaborn`, `scikit-learn`, `xgboost`, `scipy`
-- Install: `pip install kagglehub pandas numpy matplotlib seaborn scikit-learn xgboost scipy`
-- Virtual environment: `.venv/`
-- Run tests: `.venv/bin/python -m pytest tests/ -v`
+- Install: `uv sync`
+- Add dependency: `uv add <package>`
+- Run tests: `uv run pytest tests/ -v`
 
 ## Running
 
 ```bash
 # 完整流水线
-python main.py
+uv run python main.py
 
 # 交互式脚本
 ./scripts/run.sh          # 运行管理：完整/快速/EDA/建模/清理
