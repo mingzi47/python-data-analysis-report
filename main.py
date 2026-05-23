@@ -55,7 +55,8 @@ def load_and_clean(config):
     print(f"users: {users_df.shape}")
 
     recs_df = load_recommendations(data_path / "recommendations.csv", nrows=config.sample_size)
-    print(f"recommendations (sampled): {recs_df.shape}")
+    kind = "全量" if config.sample_size is None else "采样"
+    print(f"recommendations ({kind}): {recs_df.shape}")
 
     metadata_df = load_metadata(data_path / "games_metadata.json")
     print(f"metadata: {metadata_df.shape}")
@@ -202,6 +203,8 @@ def parse_args():
                         help="样本量 (default: 500000)")
     parser.add_argument("--quick", action="store_true",
                         help="快速模式，等价于 --sample-size 50000")
+    parser.add_argument("--all", action="store_true", dest="use_all",
+                        help="使用全量数据（41M+ 行），忽略 --sample-size 和 --quick")
     return parser.parse_args()
 
 
@@ -209,7 +212,9 @@ def main():
     args = parse_args()
 
     sample_size = args.sample_size
-    if args.quick:
+    if args.use_all:
+        sample_size = None
+    elif args.quick:
         sample_size = 50_000
     elif sample_size is None:
         sample_size = 500_000
@@ -218,7 +223,8 @@ def main():
     os.makedirs(config.figure_dir, exist_ok=True)
     os.makedirs(config.model_dir, exist_ok=True)
 
-    print(f"运行模式: {args.mode}, 样本量: {config.sample_size}")
+    size_label = "全量" if config.sample_size is None else f"{config.sample_size:,}"
+    print(f"运行模式: {args.mode}, 样本量: {size_label}")
 
     if args.mode in ("full", "eda", "ml"):
         games_df, users_df, recs_df = load_and_clean(config)

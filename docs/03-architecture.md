@@ -280,7 +280,7 @@ class Config:
 ### `scripts/run.sh` — 交互式运行管理
 
 支持两种调用模式：
-- **命令行模式：** `./scripts/run.sh full|quick|eda|ml|clean` 直接执行
+- **命令行模式：** `./scripts/run.sh full|quick|eda|ml|all|clean` 直接执行
 - **交互模式：** 无参数运行显示选项菜单
 
 | 命令 | 功能 | 样本量 | 预计耗时 |
@@ -289,10 +289,12 @@ class Config:
 | `quick` | 快速验证（`--quick` 参数覆写 `Config.sample_size=50_000`） | 50K | ~30 秒 |
 | `eda` | 阶段 1-4：数据加载 → 清洗 → EDA 图表 → 分析指标 | 500K | 1-2 分钟 |
 | `ml` | 阶段 5-8：特征工程 → 建模 → 评估 → 结论 | 500K | 2-4 分钟 |
+| `all` | 全量数据完整流水线（`--all`，41M+ 行，需 8GB+ 内存） | 全量 | 30 分钟+ |
 | `clean` | 清空 `outputs/figures/` 和 `outputs/models/` | — | <1 秒 |
 
 关键设计：
-- Python 逻辑全部在 `main.py` 中，通过 `--mode full|eda|ml` 和 `--quick` CLI 参数控制
+- Python 逻辑全部在 `main.py` 中，通过 `--mode full|eda|ml`、`--quick`、`--all` CLI 参数控制
+- `--all` 将 `Config.sample_size` 设为 `None`，透传给 `pd.read_csv(nrows=None)` 读取全量数据
 - `run.sh` 仅做薄包装层（颜色输出、耗时提示、菜单交互），直接调用 `uv run python main.py <args>`
 - `set -euo pipefail` 确保任何命令失败立即终止
 

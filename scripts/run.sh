@@ -8,6 +8,7 @@
 #   ./scripts/run.sh quick       快速运行（小样本）
 #   ./scripts/run.sh eda         仅 EDA（阶段 1-4）
 #   ./scripts/run.sh ml          仅建模（阶段 5-8）
+#   ./scripts/run.sh all         全量数据（41M+ 行）
 #   ./scripts/run.sh clean       清理输出目录
 #   ./scripts/run.sh help        显示帮助
 # ============================================================
@@ -82,6 +83,17 @@ run_ml() {
     echo -e "${GREEN}✓ 建模阶段完成${NC}"
 }
 
+run_all_data() {
+    print_header "全量数据运行（41M+ 行）"
+    echo -e "样本量: ${YELLOW}全量${NC} (不采样)"
+    echo -e "预计耗时: ${YELLOW}30 分钟以上${NC}"
+    echo -e "${RED}注意: 需要 8GB+ 可用内存${NC}"
+    echo ""
+    $PYTHON main.py --mode full --all
+    echo ""
+    echo -e "${GREEN}✓ 全量数据流水线完成${NC}"
+}
+
 clean_outputs() {
     print_header "清理输出目录"
     if [ -d "$PROJECT_DIR/outputs/figures" ] && [ "$(ls -A "$PROJECT_DIR/outputs/figures" 2>/dev/null)" ]; then
@@ -103,6 +115,7 @@ show_help() {
     echo "  quick    快速运行 (sample_size=50,000)"
     echo "  eda      仅 EDA 阶段 (数据加载 → 清洗 → 可视化)"
     echo "  ml       仅建模阶段 (特征工程 → 训练 → 评估)"
+    echo "  all      全量数据运行 (41M+ 行，需 8GB+ 内存)"
     echo "  clean    清理 outputs/ 目录"
     echo "  help     显示此帮助信息"
     echo ""
@@ -121,10 +134,11 @@ show_menu() {
     echo -e "${BOLD}║${NC}  ${GREEN}3${NC}) 仅 EDA 阶段 (数据→清洗→可视化)          ${BOLD}║${NC}"
     echo -e "${BOLD}║${NC}  ${GREEN}4${NC}) 仅建模阶段 (特征→训练→评估)             ${BOLD}║${NC}"
     echo -e "${BOLD}║${NC}  ${GREEN}5${NC}) 清理输出目录                            ${BOLD}║${NC}"
+    echo -e "${BOLD}║${NC}  ${GREEN}6${NC}) 全量数据运行 (41M+ 行，需 8GB+ 内存)      ${BOLD}║${NC}"
     echo -e "${BOLD}║${NC}  ${GREEN}0${NC}) 退出                                    ${BOLD}║${NC}"
     echo -e "${BOLD}╚══════════════════════════════════════════════╝${NC}"
     echo ""
-    read -r -p "请选择 [0-5]: " choice
+    read -r -p "请选择 [0-6]: " choice
     echo ""
 
     case "$choice" in
@@ -133,6 +147,7 @@ show_menu() {
         3) run_eda ;;
         4) run_ml ;;
         5) clean_outputs ;;
+        6) run_all_data ;;
         0) echo "已取消"; exit 0 ;;
         *) echo -e "${RED}无效选项${NC}"; exit 1 ;;
     esac
@@ -148,6 +163,7 @@ else
         quick)  run_quick ;;
         eda)    run_eda ;;
         ml)     run_ml ;;
+        all)    run_all_data ;;
         clean)  clean_outputs ;;
         help|--help|-h) show_help ;;
         *)
