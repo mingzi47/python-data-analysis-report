@@ -31,6 +31,11 @@ python main.py
 | [docs/02-methodology.md](docs/02-methodology.md) | 8 个阶段的详细分析方法与操作步骤 |
 | [docs/03-architecture.md](docs/03-architecture.md) | 代码架构、模块职责、数据流、目录结构 |
 | [docs/04-data-dictionary.md](docs/04-data-dictionary.md) | 数据集各文件的字段定义、类型、使用优先级 |
+| [docs/05-game-ecosystem-summary.md](docs/05-game-ecosystem-summary.md) | 游戏生态画像总结 |
+| [docs/06-user-behavior-summary.md](docs/06-user-behavior-summary.md) | 用户行为画像总结 |
+| [docs/07-findings-summary.md](docs/07-findings-summary.md) | 研究发现汇总 |
+| [docs/08-business-recommendations.md](docs/08-business-recommendations.md) | 业务建议 |
+| [docs/09-limitations.md](docs/09-limitations.md) | 局限性与后续方向 |
 
 ---
 
@@ -48,8 +53,9 @@ python main.py
 ```
 report/
 ├── main.py                     # 入口：编排完整流水线
-├── docs/                       # 项目文档（4 份）
+├── docs/                       # 项目文档（9 份）
 ├── src/                        # 源代码
+│   ├── analysis/helpers.py     #   分析辅助函数
 │   ├── data/loader.py          #   数据下载与读取
 │   ├── data/cleaner.py         #   清洗与预处理
 │   ├── features/builder.py     #   特征工程流水线
