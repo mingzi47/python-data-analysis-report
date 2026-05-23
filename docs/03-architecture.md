@@ -116,14 +116,14 @@ def load_recommendations(path: Path, nrows: int | None = None) -> pd.DataFrame:
     """加载 recommendations.csv（默认采样 50 万条）"""
 
 def load_metadata(path: Path) -> pd.DataFrame:
-    """加载 games_metadata.json，展平 tags/genres"""
+    """加载 games_metadata.json，提取 app_id、tags（实际数据无 genres/type/early_access）"""
 ```
 
 ### `src/data/cleaner.py` — 数据清洗
 
 ```python
 def clean_games(df: pd.DataFrame) -> pd.DataFrame:
-    """处理缺失值、转换日期类型、检测价格异常"""
+    """处理缺失值、转换日期类型；rating 数值型/文本型自适应处理"""
 
 def clean_users(df: pd.DataFrame) -> pd.DataFrame:
     """处理缺失值、标记逻辑异常用户"""
@@ -212,10 +212,10 @@ def plot_price_distribution(games: pd.DataFrame, save_path: str):
     """价格分布直方图（log 轴）"""
 
 def plot_rating_distribution(games: pd.DataFrame, save_path: str):
-    """评分分布直方图 + KDE"""
+    """评分分布：数值型用直方图+KDE，文本型用柱状图"""
 
 def plot_genre_bar(games: pd.DataFrame, save_path: str):
-    """Top 20 游戏类型条形图"""
+    """Top 20 游戏类型/标签条形图（genres 为空时回退到 tags）"""
 
 def plot_release_timeline(games: pd.DataFrame, save_path: str):
     """年度游戏发布量折线图"""

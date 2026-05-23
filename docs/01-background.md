@@ -9,7 +9,7 @@
 | 文件 | 核心字段 | 记录含义 |
 |------|---------|---------|
 | `games.csv` | 游戏 ID、标题、定价（美元）、评分、发布日期 | 每行是一款游戏的元信息 |
-| `games_metadata.json` | 游戏 ID、描述文本、标签/类型数组 | 每行是一款游戏的富文本和分类元数据 |
+| `games_metadata.json` | 游戏 ID、描述文本、标签数组 | 每行是一款游戏的富文本和标签元数据 |
 | `users.csv` | 用户 ID、已购产品数、已发评论数 | 每行是一位匿名用户的公开档案 |
 | `recommendations.csv` | 用户 ID、游戏 ID、是否推荐（0/1）、评价时间 | 每行是一条用户对游戏的推荐记录 |
 
@@ -49,8 +49,8 @@ path = kagglehub.dataset_download("antonkozyriev/game-recommendations-on-steam")
 **可操作的分析点：**
 
 - **价格分布：** 免费游戏 vs 付费游戏占比？付费游戏的价格集中在什么区间？是否存在"价格断层"（例如 $0-$10 和 $60-$70 两个高峰）？
-- **评分分布：** Steam 评分是正面/总评的比例。评分是两极分化（大量差评和大量好评）还是集中于高分区？是否存在"高分偏差"（推荐率整体偏高）？
-- **类型分布：** 从 `games_metadata.json` 的类型（tags/genres）字段统计什么类型最多？哪些类型组合最常出现？
+- **评分分布：** Steam 评分以文本标签呈现（"Very Positive"、"Mixed" 等），同时提供数值型的 `positive_ratio`（正面评价百分比，0-100）。评分是否偏向高分区？是否存在"高分偏差"？
+- **类型分布：** 从 `games_metadata.json` 的 `tags`（用户自定义标签）统计什么类型的游戏最多？哪些标签组合最常出现？（注：实际数据仅有 tags，无独立 genres 字段）
 - **发布日期趋势：** 游戏发布量随时间的变化趋势？是否在某些年份出现爆发（如 Steam Direct 上线后的 2017 年）？
 - **头部集中度：** 少数游戏是否占据了绝大多数推荐量（长尾分布）？推荐量的 Power Law 指数是多少？
 
@@ -108,6 +108,6 @@ path = kagglehub.dataset_download("antonkozyriev/game-recommendations-on-steam")
 
 1. **数据获取：** 使用 `kagglehub` 自动下载，首次需 `pip install kagglehub`
 2. **内存管理：** `recommendations.csv` 超过 4,100 万行（约 4-5 GB），开发阶段使用 `nrows` 采样或 `chunksize` 分批
-3. **JSON 解析：** `games_metadata.json` 的 tags/genres 以数组形式嵌套存储，需用 `MultiLabelBinarizer` 展平
+3. **JSON 解析：** `games_metadata.json` 的 `tags` 以数组形式嵌套存储，需用 explode 展开统计或 `MultiLabelBinarizer` 展平。实际数据仅包含 `app_id`、`description`、`tags` 三个字段
 4. **数据泄漏：** 不能用简单的 `train_test_split`，必须用 `GroupShuffleSplit` 按用户分组切分
 5. **DLC 处理：** 附加内容是否纳入"游戏"分析需要判断

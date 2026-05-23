@@ -103,3 +103,8 @@ tasks/
 - **No notebooks for pipeline code:** Jupyter notebooks (`notebooks/`) are for interactive EDA exploration only. All pipeline logic lives in `src/` Python modules.
 - **TDD required:** All new features/bugfixes must follow test-first development. Write test → watch fail → implement → watch pass → commit. 88 tests exist as of completion.
 - **Commit per task:** Each logical unit of work gets its own commit with a descriptive message.
+- **Data vs. dictionary discrepancies:** The actual dataset differs from `docs/04-data-dictionary.md`'s original description in several ways:
+  - `games.rating` is **text** ("Very Positive", "Mixed", etc.), NOT float. Use `games.positive_ratio` (int, 0-100) for numeric rating.
+  - `games.csv` has `win`, `mac`, `linux`, `user_reviews` columns but NO `user_score` or `owners` column.
+  - `games_metadata.json` only has `app_id`, `description`, `tags` — NO `genres`, `type`, or `early_access` fields.
+  - All code must handle both the test-fixture format (numeric rating, both tags+genres) and the real-data format (text rating, tags only). Use `pd.api.types.is_numeric_dtype()` to detect and branch.

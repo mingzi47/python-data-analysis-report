@@ -15,13 +15,13 @@
 | `games.csv` | `pd.read_csv()` 全量 | 游戏数量有限（预计数万-十余万），可直接全量加载 |
 | `users.csv` | `pd.read_csv()` 全量 | 用户数量较大但可一次性加载 |
 | `recommendations.csv` | `pd.read_csv(nrows=N)` 采样 | 4,100 万行，开发阶段采样 10-50 万条 |
-| `games_metadata.json` | `json.load()` 逐行解析后转 DataFrame | 每行是独立 JSON 对象，提取 `app_id` + `tags`/`genres` |
+| `games_metadata.json` | `json.load()` 逐行解析后转 DataFrame | 每行是独立 JSON 对象，提取 `app_id` + `tags`（实际数据仅有 tags，无 genres/type/early_access） |
 
 ### 操作步骤
 
 1. `kagglehub.dataset_download("antonkozyriev/game-recommendations-on-steam")` 获取缓存路径
 2. `pd.read_csv()` 加载各文件，打印 `shape`、`info()`、`head()` 建立基本认知
-3. 逐行读取 `games_metadata.json`，提取 `app_id`、`tags`、`genres`，展平为 DataFrame
+3. 逐行读取 `games_metadata.json`，提取 `app_id`、`tags`，展平为 DataFrame（实际数据仅有这 3 个字段）
 4. 检查主键唯一性：`games.app_id`、`users.user_id`、`recommendations.(user_id, app_id)` 组合
 
 ---
@@ -36,7 +36,7 @@
 |--------|------|---------|
 | 缺失值统计 | `df.isnull().sum() / len(df)` | 先统计再决策 |
 | 游戏标题缺失 | — | 删除该行（无法标识） |
-| 游戏评分缺失 | — | 中位数填充（比均值更稳健） |
+| 游戏评分缺失 | — | 数值型中位数填充，文本型填充 "Unknown" |
 | 发布日期缺失 | — | 填充数据集的中位数年份 |
 | 用户行为数据缺失 | — | 填充为 0（无公开记录即无行为） |
 | 推荐目标变量缺失 | — | 删除该行（目标变量不可推测） |
@@ -46,13 +46,13 @@
 - `date` → `pd.to_datetime()`，提取 `year`、`month`
 - `price` → `float`，检查非数字字符（如 "Free"）
 - `is_recommended` → `int`（0/1）
-- `tags` / `genres` → 从 JSON 数组转为 Python list，再用 `MultiLabelBinarizer` 展开
+- `tags` → 从 JSON 数组转为 Python list，用 explode 展开统计或 `apply(len)` 计算标签数量
 
 ### 2.3 异常值检测
 
 - **价格：** IQR 方法，结合业务判断（> $500 可能是特殊版本，标记但不删除）
 - **用户活跃度：** 评论数 > 已购产品数 是逻辑异常，标记并考虑排除
-- **评分：** Steam 评分范围 [0, 1]，检查超范围记录
+- **评分：** Steam 文本标签（"Very Positive" 等）无范围限制；数值型评分（`positive_ratio`）为 0-100，检查超范围记录
 
 ### 2.4 重复处理
 
@@ -70,8 +70,8 @@
 | 分析项 | 统计方法 | 可视化方法 |
 |--------|---------|-----------|
 | 价格分布 | `describe()` + 分位数 + 偏度/峰度 | 直方图 + KDE（log 轴）；饼图展示免费 vs 付费占比 |
-| 评分分布 | `describe()` + 分位数 | 直方图 + KDE；竖线标注均值和中位数 |
-| 类型频率 | `value_counts()` | 横向条形图（Top 20 类型） |
+| 评分分布 | `value_counts()`（文本型）或 `describe()`（数值型） | 柱状图（文本型）或直方图+KDE（数值型）；竖线标注均值和中位数 |
+| 类型频率 | `value_counts()`（使用 `tags`，因实际数据无 `genres`） | 横向条形图（Top 20 标签） |
 | 发布时间趋势 | `groupby('year').size()` | 折线图 |
 
 ### 3.2 单变量分析 — 用户维度
@@ -87,7 +87,7 @@
 | 分析项 | 方法 | 可视化 |
 |--------|------|--------|
 | 价格 vs 评分 | Spearman 秩相关系数 | 散点图 + LOWESS 平滑 |
-| 类型 vs 评分 | 按类型分组计算平均评分 | 分组柱状图 |
+| 类型 vs 评分 | 按标签分组计算平均评分（使用 tags） | 分组柱状图 |
 | 发布时间 vs 评分 | 按年份分组 | 折线图 |
 | 用户活跃度 vs 推荐倾向 | 按活跃度分层（low/medium/high/extreme） | 箱线图 |
 | 头部集中度 | Gini 系数 + Lorenz 曲线 | 长尾分布曲线（log-log） |
@@ -117,8 +117,8 @@
 | # | 图表 | 类型 |
 |---|------|------|
 | 1 | 游戏价格分布 | 直方图（log 轴） |
-| 2 | 游戏评分分布 | 直方图 + KDE |
-| 3 | Top 20 游戏类型 | 横向条形图 |
+| 2 | 游戏评分分布 | 柱状图（文本型）或 直方图+KDE（数值型） |
+| 3 | Top 20 游戏标签/类型 | 横向条形图（实际数据使用 tags） |
 | 4 | 年度游戏发布量 | 折线图 |
 | 5 | 用户评论数分布 | 直方图（log-log） |
 | 6 | 用户推荐率分布 | 直方图 |
@@ -156,10 +156,11 @@
 | 原始字段 | 处理方式 | 输出特征 |
 |---------|---------|---------|
 | `price` | 直接使用 + 二值化 | `price`, `is_free` |
-| `rating` | 直接使用 | `rating` |
+| `rating` | 数值型直接使用；文本型回退为 `positive_ratio / 100` | `rating` (0-1 数值) |
 | `date` | 提取年份，计算距今 | `release_year`, `years_since_release` |
-| `tags` / `genres` | `MultiLabelBinarizer`（频率 > 1%） | 每个热门类型一列 |
-| — | 类型数量 | `num_tags`, `num_genres` |
+| `tags` | `apply(len)` 计算数量；可用 expand 展开统计 | `num_tags` |
+| `genres` | 实际数据无此字段，`num_genres` 回退为 `num_tags` | `num_genres` (= num_tags) |
+| `early_access` | 实际数据无此字段，列存在时填充 0 | `early_access` (0/1) |
 
 #### （B）用户侧特征（来自 `users.csv`）
 
@@ -186,12 +187,12 @@
 
 ```
 ColumnTransformer:
-├── 数值特征（price, rating, user_products_count, ...）
-│   └── StandardScaler
-├── 二值特征（is_free, 各类型 0/1 列）
+├── 数值特征（price, rating, hours, user_products_count, game_recommend_rate, ...）
+│   └── StandardScaler（当前默认 passthrough 全量特征）
+├── 二值特征（is_free）
 │   └── passthrough
-└── 类别特征（release_year）
-    └── OneHotEncoder
+└── 其余特征
+    └── passthrough
 ```
 
 ### 5.4 特征选择（可选）

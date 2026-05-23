@@ -6,19 +6,25 @@
 
 | # | 字段名 | 类型 | 说明 | 示例 |
 |---|--------|------|------|------|
-| 1 | `app_id` | int | Steam 唯一应用 ID | `730` |
-| 2 | `title` | str | 游戏标题 | `"Counter-Strike: Global Offensive"` |
-| 3 | `date_release` | str/date | 发布日期 | `"2012-08-21"` |
-| 4 | `rating` | float | Steam 评分（正面评价/总评价，范围 0-1） | `0.87` |
-| 5 | `positive_ratio` | float | 正面评价占比（与 rating 可能冗余，需核实） | `0.85` |
-| 6 | `user_score` | int | 评分对应的用户量级（如 1-10，具体含义待确认） | `8` |
-| 7 | `price_original` | float | 原价（美元） | `14.99` |
-| 8 | `price_final` | float | 折扣后价格（美元）；若与原价一致则表示未打折 | `14.99` |
-| 9 | `discount` | float | 折扣比例（0-1）；0 = 无折扣 | `0.0` |
-| 10 | `owners` | str | 拥有者估计区间 | `"1000000-2000000"` |
-| 11 | `steam_deck` | int | Steam Deck 兼容性等级（0-2，具体编码待确认） | `1` |
+| 1 | `app_id` | int | Steam 唯一应用 ID | `13500` |
+| 2 | `title` | str | 游戏标题 | `"Prince of Persia: Warrior Within™"` |
+| 3 | `date_release` | str/date | 发布日期 | `"2008-11-21"` |
+| 4 | `win` | bool | 是否支持 Windows | `true` |
+| 5 | `mac` | bool | 是否支持 macOS | `false` |
+| 6 | `linux` | bool | 是否支持 Linux | `false` |
+| 7 | `rating` | str | Steam 文本评分标签（"Overwhelmingly Positive"、"Very Positive"、"Mixed" 等） | `"Very Positive"` |
+| 8 | `positive_ratio` | int | 正面评价百分比（0-100），数值型评分的主力字段 | `84` |
+| 9 | `user_reviews` | int | 用户评价总数 | `2199` |
+| 10 | `price_final` | float | 最终价格（美元）；若与 `price_original` 一致则表示未打折 | `9.99` |
+| 11 | `price_original` | float | 原价（美元） | `9.99` |
+| 12 | `discount` | float | 折扣比例（0-1）；0 = 无折扣 | `0.0` |
+| 13 | `steam_deck` | bool | Steam Deck 兼容性 | `true` |
 
-> **注意：** `rating` 和 `positive_ratio` 的关系需要在实际数据中核实，可能存在功能重叠。`owners` 是范围文本（如 "1000000-2000000"），需要解析为数值。
+> **注意：**
+> - `rating` 是文本标签（如 "Very Positive"），**不能直接用于数值计算**。需要数值评分时使用 `positive_ratio`。
+> - `positive_ratio` 是 0-100 的整数，表示正面评价百分比。在特征工程中除以 100 映射到 [0, 1] 区间。
+> - 实际数据中**没有** `user_score`、`owners` 列，但有 `win`、`mac`、`linux`、`user_reviews` 列。
+> - `owners` 列在某些版本的 Steam 数据集中存在但在本项目使用的版本中缺失。
 
 ---
 
@@ -49,11 +55,13 @@
 | 5 | `date` | str/date | 评价发布时间 | `"2018-03-15"` |
 | 6 | `helpful` | int | 该评价被其他用户标记为"有帮助"的次数 | `12` |
 | 7 | `funny` | int | 该评价被其他用户标记为"有趣"的次数 | `3` |
+| 8 | `review_id` | int | 评价唯一 ID | `24251963` |
 
 > **注意：**
 > - `hours` 是重要的补充特征：用户玩的时间越长，评价的可信度/权重可能越高
 > - `helpful` 和 `funny` 反映社区对评价本身的认可度，可用于权重调整
 > - `(user_id, app_id)` 理论上是唯一的，但可能存在历史修改记录（新旧评价并存），需按 `date` 去重保留最新
+> - 实际数据有 `review_id` 列，为评价的唯一标识符
 
 ---
 
@@ -63,18 +71,15 @@
 
 | # | 字段名 | 类型 | 说明 | 示例 |
 |---|--------|------|------|------|
-| 1 | `app_id` | int | Steam 唯一应用 ID（外键 → `games.app_id`） | `730` |
-| 2 | `description` | str | 游戏描述文本（多语言混合） | `"The #1 competitive FPS..."` |
-| 3 | `tags` | list[str] | 用户自定义标签数组 | `["FPS", "Multiplayer", "Shooter", "Competitive"]` |
-| 4 | `genres` | list[str] | Steam 官方分类数组 | `["Action", "Free to Play"]` |
-| 5 | `type` | str | 产品类型：`game` / `dlc` / `music` / `video` 等 | `"game"` |
-| 6 | `early_access` | int | 是否为抢先体验（0/1） | `0` |
+| 1 | `app_id` | int | Steam 唯一应用 ID（外键 → `games.app_id`） | `13500` |
+| 2 | `description` | str | 游戏描述文本（多语言混合） | `"Enter the dark underworld of..."` |
+| 3 | `tags` | list[str] | 用户自定义标签数组 | `["Action", "Adventure", "Parkour", "Singleplayer", ...]` |
 
 > **注意：**
-> - `tags` 是用户自定义的，数量多、粒度细、有噪声（如 "Masterpiece"、"Walking Simulator"）
-> - `genres` 是 Steam 官方分类，数量少、规范化程度高
-> - `type` 可用于过滤——是否只保留 `game`，排除 `dlc`、`music`、`video`？
-> - `description` 是多语言文本，初版分析可以不使用，后续可尝试 NLP 特征
+> - **实际数据仅包含以上 3 个字段。** 不包含 `genres`、`type`、`early_access` 列（这些在文档描述的版本中存在但在本项目使用的数据版本中缺失）。
+> - `tags` 是用户自定义的，数量多、粒度细、有噪声（如 "Masterpiece"、"Walking Simulator"），通常有 10-20 个标签。
+> - `tags` 在项目中被同时用作"标签"和"类型"的代理——当它被 explode 展开时能提供类似 genres 的分类信息。
+> - `description` 是多语言文本，初版分析可以不使用，后续可尝试 NLP 特征。
 
 ---
 
@@ -86,23 +91,22 @@
 
 | 数据集 | 字段 | 用途 |
 |--------|------|------|
-| games | `app_id`, `title`, `rating`, `price_final`, `date_release` | 游戏基础画像 + 建模特征 |
+| games | `app_id`, `title`, `positive_ratio`, `rating`, `price_final`, `date_release` | 游戏基础画像 + 建模特征 |
 | users | `user_id`, `products`, `reviews` | 用户行为画像 + 建模特征 |
 | recommendations | `user_id`, `app_id`, `is_recommended`, `hours`, `date` | 交互数据 + 目标变量 |
-| metadata | `app_id`, `tags`, `genres`, `type` | 类型特征 + 产品类型过滤 |
+| metadata | `app_id`, `tags` | 标签特征（代理 genres 功能） |
 
 ### 扩展字段（可用但非必需）
 
 | 数据集 | 字段 | 用途 |
 |--------|------|------|
-| games | `discount`, `owners`, `steam_deck` | 可选的游戏侧特征 |
+| games | `discount`, `steam_deck`, `win`, `mac`, `linux` | 可选的游戏侧特征（平台兼容性可编码） |
+| games | `user_reviews` | 游戏的评价总数，可替代 owners 的流行度信号 |
 | recommendations | `helpful`, `funny` | 评价权重调整 |
-| metadata | `early_access` | 是否为抢先体验（可能影响评分） |
+| recommendations | `review_id` | 评价唯一标识（去重备选） |
 
 ### 待选字段（初版暂不使用）
 
 | 数据集 | 字段 | 原因 |
 |--------|------|------|
-| games | `positive_ratio` | 可能与 `rating` 冗余 |
-| games | `user_score` | 含义不明确 |
 | metadata | `description` | 多语言文本，NLP 成本高 |
