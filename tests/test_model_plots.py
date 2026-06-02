@@ -144,3 +144,20 @@ class TestPlotLearningCurve:
         import os
         assert os.path.exists(save_path)
         assert os.path.getsize(save_path) > 0
+
+    def test_creates_file_with_groups(self, synthetic_data, tmp_path):
+        """传入 groups 时应使用 GroupShuffleSplit 而非普通 KFold。"""
+        from src.visualization.model_plots import plot_learning_curve
+
+        X_train, X_test, y_train, y_test, X, y = synthetic_data
+
+        model = LogisticRegression(max_iter=1000, random_state=42)
+        # 模拟用户分组
+        groups = np.repeat(range(28), 5)[:140]
+
+        save_path = str(tmp_path / "learning_curve_grouped.png")
+        plot_learning_curve(model, X_train, y_train, save_path, groups=groups)
+
+        import os
+        assert os.path.exists(save_path)
+        assert os.path.getsize(save_path) > 0

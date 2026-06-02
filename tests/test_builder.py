@@ -49,6 +49,42 @@ class TestGameFeatures:
         assert result.loc[730, "is_free"] == 0
         assert result.loc[730, "num_tags"] == 2
 
+    def test_handles_missing_release_date(self):
+        """没有 release_year 和 date_release 时不应崩溃。"""
+        from src.features.builder import _build_game_features
+
+        games = pd.DataFrame({
+            "app_id": [730, 570],
+            "title": ["Game A", "Game B"],
+            "rating": [0.9, 0.8],
+            "price_final": [0.0, 9.99],
+            "tags": [["Action"], ["RPG"]],
+        }).set_index("app_id")
+
+        result = _build_game_features(games)
+        assert "years_since_release" in result.columns
+        # 所有游戏都应使用当前年份（即 years_since_release ≈ 0）
+        assert (result["years_since_release"] >= 0).all()
+
+    def test_num_genres_is_zero_when_no_genres(self):
+        """没有 genres 列时，num_genres 应为 0 而非回退到 num_tags。"""
+        from src.features.builder import _build_game_features
+
+        games = pd.DataFrame({
+            "app_id": [730, 570],
+            "title": ["Game A", "Game B"],
+            "rating": [0.9, 0.8],
+            "price_final": [0.0, 9.99],
+            "tags": [["Action", "FPS"], ["RPG"]],
+            "release_year": [2020, 2019],
+        }).set_index("app_id")
+
+        result = _build_game_features(games)
+        assert result.loc[730, "num_tags"] == 2
+        assert result.loc[730, "num_genres"] == 0
+        # 两列不应冗余相同
+        assert not (result["num_tags"] == result["num_genres"]).all()
+
     def test_index_is_app_id(self):
         from src.features.builder import _build_game_features
 

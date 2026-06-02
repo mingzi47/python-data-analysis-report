@@ -202,7 +202,8 @@ def run_modeling(games_df, users_df, recs_df, config):
     plot_partial_dependence(best_model, X_train, top4_features,
                             str(config.figure_dir / "partial_dependence.png"))
     plot_learning_curve(best_model, X_train, y_train,
-                        str(config.figure_dir / "learning_curve.png"))
+                        str(config.figure_dir / "learning_curve.png"),
+                        groups=groups_train)
     print("模型评估图表已生成")
 
     print("\n" + "=" * 60)

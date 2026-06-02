@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import RocCurveDisplay, roc_auc_score, confusion_matrix
 from sklearn.inspection import PartialDependenceDisplay
-from sklearn.model_selection import learning_curve
+from sklearn.model_selection import learning_curve, GroupShuffleSplit
 
 
 def plot_roc_curves(models: dict, X_test, y_test, save_path: str) -> None:
@@ -130,10 +130,11 @@ def plot_partial_dependence(model, X, features, save_path: str) -> None:
     plt.close(display.figure_)
 
 
-def plot_learning_curve(model, X, y, save_path: str) -> None:
+def plot_learning_curve(model, X, y, save_path: str, groups=None) -> None:
     """Plot a learning curve using sklearn.model_selection.learning_curve.
 
-    Uses 3-fold CV, ROC AUC scoring and a small set of training sizes.
+    Uses 3-fold CV (grouped when groups is provided), ROC AUC scoring,
+    and a small set of training sizes.
 
     Parameters
     ----------
@@ -141,11 +142,16 @@ def plot_learning_curve(model, X, y, save_path: str) -> None:
     X : array-like
     y : array-like
     save_path : str
+    groups : array-like or None
+        分组标签（用于 GroupShuffleSplit，防止同一用户数据泄漏到不同折）
     """
     train_sizes = np.linspace(0.1, 1.0, 5)
+    cv = GroupShuffleSplit(n_splits=3, test_size=0.2, random_state=42) if groups is not None else 3
+    cv_kwargs = {"groups": groups} if groups is not None else {}
     train_sizes_abs, train_scores, test_scores = learning_curve(
-        model, X, y, cv=3, scoring="roc_auc",
-        train_sizes=train_sizes, n_jobs=1, random_state=42
+        model, X, y, cv=cv, scoring="roc_auc",
+        train_sizes=train_sizes, n_jobs=1, random_state=42,
+        **cv_kwargs,
     )
 
     train_mean = np.mean(train_scores, axis=1)
