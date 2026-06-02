@@ -1,4 +1,4 @@
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import GroupShuffleSplit, train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
@@ -50,21 +50,37 @@ def train_logistic_regression(X_train, y_train, random_state=42):
 
 def train_random_forest(X_train, y_train, random_state=42):
     model = RandomForestClassifier(
-        n_estimators=100, max_depth=10, random_state=random_state, n_jobs=-1,
+        n_estimators=200, max_depth=15, random_state=random_state, n_jobs=-1,
         class_weight="balanced",
     )
     model.fit(X_train, y_train)
     return model
 
 
-def train_xgboost(X_train, y_train, random_state=42):
+def train_xgboost(X_train, y_train, random_state=42, groups=None):
     n_negative = (y_train == 0).sum()
     n_positive = (y_train == 1).sum()
     scale_pos_weight = n_negative / n_positive if n_positive > 0 else 1.0
+
+    # 构建早停验证集：传入 groups 时使用分组拆分，否则简单留出 15%
+    if groups is not None and len(X_train) >= 20:
+        gss = GroupShuffleSplit(n_splits=1, test_size=0.15, random_state=random_state)
+        train_idx, val_idx = next(gss.split(X_train, groups=groups))
+        eval_set = [(X_train.iloc[train_idx], y_train.iloc[train_idx]),
+                     (X_train.iloc[val_idx], y_train.iloc[val_idx])]
+    elif len(X_train) >= 20:
+        X_tr, X_val, y_tr, y_val = train_test_split(
+            X_train, y_train, test_size=0.15, random_state=random_state
+        )
+        eval_set = [(X_tr, y_tr), (X_val, y_val)]
+    else:
+        eval_set = [(X_train, y_train)]
+
     model = XGBClassifier(
-        n_estimators=100, max_depth=6, learning_rate=0.1,
+        n_estimators=200, max_depth=6, learning_rate=0.1,
         random_state=random_state, eval_metric="logloss",
         scale_pos_weight=scale_pos_weight,
+        early_stopping_rounds=10,
     )
-    model.fit(X_train, y_train)
+    model.fit(X_train, y_train, eval_set=eval_set, verbose=False)
     return model

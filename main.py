@@ -2,7 +2,6 @@
 
 import argparse
 import os
-from pathlib import Path
 import numpy as np
 import pandas as pd
 
@@ -154,7 +153,7 @@ def run_modeling(games_df, users_df, recs_df, config):
     print("训练随机森林...")
     rf = train_random_forest(X_train, y_train, random_state=rs)
     print("训练 XGBoost...")
-    xgb = train_xgboost(X_train, y_train, random_state=rs)
+    xgb = train_xgboost(X_train, y_train, random_state=rs, groups=groups_train)
 
     print("\n" + "=" * 60)
     print("阶段 7: 模型评估")

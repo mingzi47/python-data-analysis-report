@@ -174,6 +174,41 @@ class TestTrainModels:
         assert model.scale_pos_weight is not None
         assert model.scale_pos_weight > 0
 
+    def test_xgboost_uses_early_stopping(self, sample_split_data):
+        """XGBoost 应设置 early_stopping_rounds 防止过拟合。"""
+        from src.models.trainer import split_data, train_xgboost
+
+        X, y, groups = sample_split_data
+        X_train, X_test, y_train, y_test = split_data(X, y, groups)
+
+        model = train_xgboost(X_train, y_train)
+        # early_stopping_rounds 被设置后，best_iteration 应 <= n_estimators
+        assert model.best_iteration is not None
+        assert model.best_iteration <= 200  # n_estimators
+
+    def test_xgboost_with_groups_for_early_stopping(self, sample_split_data):
+        """传入 groups 时，应使用分组验证集做早停。"""
+        from src.models.trainer import split_data, train_xgboost
+
+        X, y, groups = sample_split_data
+        X_train, X_test, y_train, y_test = split_data(X, y, groups)
+        train_groups = groups.iloc[X_train.index]
+
+        model = train_xgboost(X_train, y_train, groups=train_groups)
+        assert model.best_iteration is not None
+        assert model.best_iteration > 0
+
+    def test_random_forest_has_improved_defaults(self, sample_split_data):
+        """RandomForest 应使用改进的超参数默认值。"""
+        from src.models.trainer import split_data, train_random_forest
+
+        X, y, groups = sample_split_data
+        X_train, X_test, y_train, y_test = split_data(X, y, groups)
+
+        model = train_random_forest(X_train, y_train)
+        assert model.n_estimators >= 200
+        assert model.max_depth >= 15
+
 
 class TestEvaluateModel:
     def test_returns_metrics_dict(self, sample_split_data):
