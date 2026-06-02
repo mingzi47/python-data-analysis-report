@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler
 
 
@@ -170,10 +169,15 @@ def build_features(
     return X, y, groups
 
 
-def build_preprocessor() -> ColumnTransformer:
-    return ColumnTransformer(
-        transformers=[
-            ("scaler", StandardScaler(), []),
-        ],
-        remainder="passthrough",
-    )
+def build_preprocessor() -> StandardScaler:
+    """返回用于特征缩放的 StandardScaler。
+
+    所有数值特征经 StandardScaler 变换为均值为 0、标准差为 1 的分布。
+    这对 LogisticRegression 等基于梯度的模型至关重要。
+    树模型（RF、XGBoost）不受缩放影响，使用缩放后的数据也无害。
+
+    Returns
+    -------
+    StandardScaler
+    """
+    return StandardScaler()

@@ -40,25 +40,31 @@ def split_recommendations(recs, test_size=0.2, random_state=42):
     return recs.iloc[train_idx], recs.iloc[test_idx]
 
 
-def train_logistic_regression(X_train, y_train):
-    model = LogisticRegression(max_iter=2000, random_state=42)
+def train_logistic_regression(X_train, y_train, random_state=42):
+    model = LogisticRegression(
+        max_iter=2000, random_state=random_state, class_weight="balanced",
+    )
     model.fit(X_train, y_train)
     return model
 
 
-def train_random_forest(X_train, y_train):
+def train_random_forest(X_train, y_train, random_state=42):
     model = RandomForestClassifier(
-        n_estimators=100, max_depth=10, random_state=42, n_jobs=-1,
+        n_estimators=100, max_depth=10, random_state=random_state, n_jobs=-1,
         class_weight="balanced",
     )
     model.fit(X_train, y_train)
     return model
 
 
-def train_xgboost(X_train, y_train):
+def train_xgboost(X_train, y_train, random_state=42):
+    n_negative = (y_train == 0).sum()
+    n_positive = (y_train == 1).sum()
+    scale_pos_weight = n_negative / n_positive if n_positive > 0 else 1.0
     model = XGBClassifier(
         n_estimators=100, max_depth=6, learning_rate=0.1,
-        random_state=42, eval_metric="logloss",
+        random_state=random_state, eval_metric="logloss",
+        scale_pos_weight=scale_pos_weight,
     )
     model.fit(X_train, y_train)
     return model

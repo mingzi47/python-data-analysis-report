@@ -9,8 +9,8 @@ import pandas as pd
 from src.utils.config import Config
 from src.data.loader import download_dataset, load_games, load_users, load_recommendations, load_metadata
 from src.data.cleaner import clean_games, clean_users, clean_recommendations, merge_metadata
-from src.features.builder import build_features, fit_interaction_aggregates
-from src.models.trainer import split_data, split_recommendations, train_logistic_regression, train_random_forest, train_xgboost
+from src.features.builder import build_features, fit_interaction_aggregates, build_preprocessor
+from src.models.trainer import split_recommendations, train_logistic_regression, train_random_forest, train_xgboost
 from src.models.baseline import evaluate_baselines
 from src.models.evaluator import evaluate_model, compare_models
 from src.analysis.helpers import (
@@ -136,26 +136,36 @@ def run_modeling(games_df, users_df, recs_df, config):
     print("阶段 6: 建模")
     print("=" * 60)
 
+    # 特征缩放（对 LogisticRegression 收敛至关重要）
+    preprocessor = build_preprocessor()
+    X_train_scaled = preprocessor.fit_transform(X_train)
+    # 保持 DataFrame 结构以支持列名引用
+    X_train_scaled = pd.DataFrame(X_train_scaled, columns=X_train.columns, index=X_train.index)
+    X_test_scaled = pd.DataFrame(preprocessor.transform(X_test), columns=X_test.columns, index=X_test.index)
+
     baseline_results = evaluate_baselines(X_train, y_train, X_test, y_test)
     print("\n基线模型结果:")
     for name, metrics in baseline_results.items():
         print(f"  {name}: Accuracy={metrics['accuracy']:.3f}, ROC-AUC={metrics['roc_auc']:.3f}")
 
+    rs = config.random_seed
     print("\n训练逻辑回归...")
-    lr = train_logistic_regression(X_train, y_train)
+    lr = train_logistic_regression(X_train_scaled, y_train, random_state=rs)
     print("训练随机森林...")
-    rf = train_random_forest(X_train, y_train)
+    rf = train_random_forest(X_train, y_train, random_state=rs)
     print("训练 XGBoost...")
-    xgb = train_xgboost(X_train, y_train)
+    xgb = train_xgboost(X_train, y_train, random_state=rs)
 
     print("\n" + "=" * 60)
     print("阶段 7: 模型评估")
     print("=" * 60)
 
     models = {"LogisticRegression": lr, "RandomForest": rf, "XGBoost": xgb}
+    # LogisticRegression 需要缩放后的特征；树模型不受缩放影响，统一使用缩放数据
     results = {}
     for name, model in models.items():
-        results[name] = evaluate_model(model, X_test, y_test)
+        X_eval = X_test_scaled if name == "LogisticRegression" else X_test
+        results[name] = evaluate_model(model, X_eval, y_test)
 
     all_results = {**baseline_results, **results}
     comparison = compare_models(all_results)
@@ -165,7 +175,8 @@ def run_modeling(games_df, users_df, recs_df, config):
     comparison.to_csv(config.model_dir / "comparison.csv")
     print(f"\n对比表已保存: {config.model_dir / 'comparison.csv'}")
 
-    plot_roc_curves(models, X_test, y_test, str(config.figure_dir / "roc_curves.png"))
+    # ROC 曲线: 缩放不改变排序，统一使用 X_test_scaled
+    plot_roc_curves(models, X_test_scaled, y_test, str(config.figure_dir / "roc_curves.png"))
     best_model = rf
     plot_confusion_matrix(best_model, X_test, y_test, str(config.figure_dir / "confusion_matrix.png"))
 

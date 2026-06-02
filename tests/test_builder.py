@@ -232,13 +232,13 @@ class TestBuildFeaturesWithPrecomputedAggs:
 
 
 class TestBuildPreprocessor:
-    def test_returns_column_transformer(self):
+    def test_returns_scaler(self):
         from src.features.builder import build_preprocessor
-        from sklearn.compose import ColumnTransformer
+        from sklearn.preprocessing import StandardScaler
 
         ct = build_preprocessor()
 
-        assert isinstance(ct, ColumnTransformer)
+        assert isinstance(ct, StandardScaler)
 
     def test_fit_transform_produces_no_nan(self):
         from src.features.builder import build_features, build_preprocessor
@@ -248,9 +248,53 @@ class TestBuildPreprocessor:
         users = make_users_df()
 
         X, y, groups = build_features(recs, games, users)
-        ct = build_preprocessor()
-        X_scaled = ct.fit_transform(X)
+        scaler = build_preprocessor()
+        X_scaled = scaler.fit_transform(X)
 
         if hasattr(X_scaled, "toarray"):
             X_scaled = X_scaled.toarray()
         assert not np.isnan(X_scaled).any()
+
+    def test_scaling_normalizes_features(self):
+        """缩放后非常量列应接近均值为0、标准差为1。"""
+        from src.features.builder import build_features, build_preprocessor
+
+        recs = make_recs_df()
+        games = make_games_df()
+        users = make_users_df()
+
+        X, y, groups = build_features(recs, games, users)
+        scaler = build_preprocessor()
+        X_scaled = scaler.fit_transform(X)
+
+        means = np.mean(X_scaled, axis=0)
+        stds = np.std(X_scaled, axis=0)
+        # 过滤常量列（原始方差为 0 的列缩放后 std 保持为 0）
+        non_constant = stds > 0
+        # 非常量列的均值应接近 0
+        assert np.allclose(means[non_constant], 0, atol=1e-7)
+        # 非常量列的标准差应接近 1
+        assert np.allclose(stds[non_constant], 1, atol=1e-7)
+
+    def test_transform_uses_fit_statistics(self):
+        """transform 应使用 fit 时的统计量，而非重新计算。"""
+        from src.features.builder import build_features, build_preprocessor
+
+        recs = make_recs_df()
+        games = make_games_df()
+        users = make_users_df()
+
+        X, y, groups = build_features(recs, games, users)
+        scaler = build_preprocessor()
+
+        # Fit on first half, transform on second half
+        half = len(X) // 2
+        X_train = X.iloc[:half]
+        X_test = X.iloc[half:]
+
+        scaler.fit(X_train)
+        X_test_scaled = scaler.transform(X_test)
+
+        # 测试集的缩放后均值不应为 0（因为使用的是训练集统计量）
+        test_means = np.mean(X_test_scaled, axis=0)
+        assert not np.allclose(test_means, 0, atol=1e-7)

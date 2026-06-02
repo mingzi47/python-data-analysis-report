@@ -134,6 +134,46 @@ class TestTrainModels:
         assert hasattr(model, "predict")
         assert hasattr(model, "predict_proba")
 
+    def test_logistic_regression_accepts_random_state(self, sample_split_data):
+        from src.models.trainer import split_data, train_logistic_regression
+
+        X, y, groups = sample_split_data
+        X_train, X_test, y_train, y_test = split_data(X, y, groups)
+
+        model1 = train_logistic_regression(X_train, y_train, random_state=123)
+        model2 = train_logistic_regression(X_train, y_train, random_state=123)
+        # 相同 random_state 应产生相同系数
+        assert np.allclose(model1.coef_, model2.coef_)
+
+    def test_random_forest_accepts_random_state(self, sample_split_data):
+        from src.models.trainer import split_data, train_random_forest
+
+        X, y, groups = sample_split_data
+        X_train, X_test, y_train, y_test = split_data(X, y, groups)
+
+        model1 = train_random_forest(X_train, y_train, random_state=99)
+        model2 = train_random_forest(X_train, y_train, random_state=99)
+        assert np.allclose(model1.feature_importances_, model2.feature_importances_)
+
+    def test_logistic_regression_has_class_weight(self, sample_split_data):
+        from src.models.trainer import split_data, train_logistic_regression
+
+        X, y, groups = sample_split_data
+        X_train, X_test, y_train, y_test = split_data(X, y, groups)
+
+        model = train_logistic_regression(X_train, y_train)
+        assert model.class_weight == "balanced"
+
+    def test_xgboost_has_scale_pos_weight(self, sample_split_data):
+        from src.models.trainer import split_data, train_xgboost
+
+        X, y, groups = sample_split_data
+        X_train, X_test, y_train, y_test = split_data(X, y, groups)
+
+        model = train_xgboost(X_train, y_train)
+        assert model.scale_pos_weight is not None
+        assert model.scale_pos_weight > 0
+
 
 class TestEvaluateModel:
     def test_returns_metrics_dict(self, sample_split_data):
