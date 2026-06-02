@@ -148,6 +148,15 @@ def plot_learning_curve(model, X, y, save_path: str, groups=None) -> None:
     train_sizes = np.linspace(0.1, 1.0, 5)
     cv = GroupShuffleSplit(n_splits=3, test_size=0.2, random_state=42) if groups is not None else 3
     cv_kwargs = {"groups": groups} if groups is not None else {}
+
+    # XGBoost 的 early_stopping_rounds 要求 fit() 时传入 eval_set，
+    # 但 sklearn 的 learning_curve 内部不会传 eval_set。
+    # 克隆一份模型并移除早停，仅用于学习曲线绘制。
+    if hasattr(model, "early_stopping_rounds") and model.early_stopping_rounds is not None:
+        from sklearn.base import clone
+        model = clone(model)
+        model.set_params(early_stopping_rounds=None)
+
     train_sizes_abs, train_scores, test_scores = learning_curve(
         model, X, y, cv=cv, scoring="roc_auc",
         train_sizes=train_sizes, n_jobs=-1, random_state=42,
