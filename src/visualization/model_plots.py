@@ -150,7 +150,7 @@ def plot_learning_curve(model, X, y, save_path: str, groups=None) -> None:
     cv_kwargs = {"groups": groups} if groups is not None else {}
     train_sizes_abs, train_scores, test_scores = learning_curve(
         model, X, y, cv=cv, scoring="roc_auc",
-        train_sizes=train_sizes, n_jobs=1, random_state=42,
+        train_sizes=train_sizes, n_jobs=-1, random_state=42,
         **cv_kwargs,
     )
 

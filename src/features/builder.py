@@ -23,16 +23,17 @@ def _build_game_features(games: pd.DataFrame) -> pd.DataFrame:
     else:
         feats["rating"] = 0.0
 
-    release_year = games.get("release_year")
-    if release_year is None and "date_release" in games.columns:
+    if "release_year" in games.columns:
+        release_year = games["release_year"]
+    elif "date_release" in games.columns:
         release_year = pd.to_datetime(games["date_release"], errors="coerce").dt.year
-    if release_year is None:
+    else:
         # 没有任何发布日期信息，全部填充为今年（即"新游戏"）
         release_year = pd.Series(today.year, index=games.index)
     feats["years_since_release"] = today.year - release_year.fillna(today.year).astype(int)
 
-    tags = games.get("tags")
-    genres = games.get("genres")
+    tags = games["tags"] if "tags" in games.columns else None
+    genres = games["genres"] if "genres" in games.columns else None
     feats["num_tags"] = tags.apply(len) if tags is not None else 0
     # genres 仅在真实存在且包含列表数据时才使用，否则设为 0（而非回退到 num_tags 造成冗余）
     if genres is not None and hasattr(genres, 'apply') and genres.apply(lambda x: len(x) if isinstance(x, list) else 0).sum() > 0:

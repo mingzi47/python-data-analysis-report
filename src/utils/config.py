@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -11,5 +11,9 @@ class Config:
     cv_iter: int = 20
     data_dir: Path = Path("data")
     output_dir: Path = Path("outputs")
-    figure_dir: Path = Path("outputs/figures")
-    model_dir: Path = Path("outputs/models")
+    figure_dir: Path = field(init=False)
+    model_dir: Path = field(init=False)
+
+    def __post_init__(self):
+        self.figure_dir = self.output_dir / "figures"
+        self.model_dir = self.output_dir / "models"

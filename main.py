@@ -174,10 +174,16 @@ def run_modeling(games_df, users_df, recs_df, config):
     comparison.to_csv(config.model_dir / "comparison.csv")
     print(f"\n对比表已保存: {config.model_dir / 'comparison.csv'}")
 
+    # 从训练模型中选出最佳模型（基线模型不支持 predict/feature_importances_）
+    trained_aucs = {name: results[name]["roc_auc"] for name in models}
+    best_name = max(trained_aucs, key=trained_aucs.get)
+    best_model = models[best_name]
+    print(f"\n最佳训练模型: {best_name} (ROC-AUC: {trained_aucs[best_name]:.4f})")
+
     # ROC 曲线: 缩放不改变排序，统一使用 X_test_scaled
     plot_roc_curves(models, X_test_scaled, y_test, str(config.figure_dir / "roc_curves.png"))
-    best_model = rf
-    plot_confusion_matrix(best_model, X_test, y_test, str(config.figure_dir / "confusion_matrix.png"))
+    # 混淆矩阵使用缩放数据以保持与训练时一致（LR 需要缩放，树模型不受影响）
+    plot_confusion_matrix(best_model, X_test_scaled, y_test, str(config.figure_dir / "confusion_matrix.png"))
 
     if hasattr(best_model, "feature_importances_"):
         feature_names = X_train.columns.tolist()
@@ -209,9 +215,9 @@ def run_modeling(games_df, users_df, recs_df, config):
     print("阶段 8: 分析总结")
     print("=" * 60)
 
-    best_name = comparison["roc_auc"].idxmax()
-    best_auc = comparison.loc[best_name, "roc_auc"]
-    print(f"最佳模型: {best_name} (ROC-AUC: {best_auc:.4f})")
+    best_overall = comparison["roc_auc"].idxmax()
+    best_auc = comparison.loc[best_overall, "roc_auc"]
+    print(f"最佳模型（含基线）: {best_overall} (ROC-AUC: {best_auc:.4f})")
 
     if hasattr(best_model, "feature_importances_"):
         importances = best_model.feature_importances_

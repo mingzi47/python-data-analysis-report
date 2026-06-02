@@ -5,6 +5,11 @@ from xgboost import XGBClassifier
 
 
 def split_data(X, y, groups, test_size=0.2, random_state=42):
+    """按用户分组拆分已构建的特征矩阵（供测试/快速原型使用）。
+
+    注意：主流水线使用 split_recommendations 在特征构建前拆分推荐记录，
+    以防止交互特征的数据泄漏。本函数仅适用于已构建好特征的场景（如单元测试）。
+    """
     gss = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=random_state)
     train_idx, test_idx = next(gss.split(X, y, groups=groups))
 
