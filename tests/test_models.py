@@ -17,6 +17,43 @@ def sample_split_data():
     return X, y, groups
 
 
+class TestSplitRecommendations:
+    def test_splits_dataframe_by_user(self):
+        """拆分后的训练集和测试集不应有用户重叠。"""
+        import pandas as pd
+        from src.models.trainer import split_recommendations
+
+        recs = pd.DataFrame({
+            "app_id": [730, 570, 440, 730, 570, 440, 730, 570],
+            "user_id": [1, 1, 2, 3, 3, 4, 5, 5],
+            "is_recommended": [1, 1, 0, 1, 0, 1, 0, 1],
+            "hours": [10.0] * 8,
+        })
+        train, test = split_recommendations(recs, test_size=0.25, random_state=42)
+
+        train_users = set(train["user_id"])
+        test_users = set(test["user_id"])
+        assert train_users.isdisjoint(test_users)
+        assert len(train) > 0 and len(test) > 0
+
+    def test_preserves_columns(self):
+        import pandas as pd
+        from src.models.trainer import split_recommendations
+
+        recs = pd.DataFrame({
+            "app_id": [730, 570, 440],
+            "user_id": [1, 1, 2],
+            "is_recommended": [1, 0, 1],
+            "hours": [10.0, 20.0, 30.0],
+            "date": ["2020-01-01", "2020-02-01", "2020-03-01"],
+        })
+        train, test = split_recommendations(recs, test_size=0.3, random_state=42)
+
+        for col in recs.columns:
+            assert col in train.columns
+            assert col in test.columns
+
+
 class TestSplitData:
     def test_returns_train_test_splits(self, sample_split_data):
         from src.models.trainer import split_data

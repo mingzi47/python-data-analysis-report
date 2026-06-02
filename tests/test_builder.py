@@ -144,6 +144,93 @@ class TestBuildFeatures:
         assert list(groups) == [1, 1, 2, 3, 3]
 
 
+class TestFitInteractionAggregates:
+    def test_returns_game_and_user_aggs(self):
+        from src.features.builder import fit_interaction_aggregates
+
+        recs = make_recs_df()
+        game_aggs, user_aggs = fit_interaction_aggregates(recs)
+
+        assert "game_review_count" in game_aggs.columns
+        assert "game_recommend_rate" in game_aggs.columns
+        assert "game_avg_hours" in game_aggs.columns
+        assert "user_review_count" in user_aggs.columns
+        assert "user_recommend_rate" in user_aggs.columns
+        assert "user_avg_hours" in user_aggs.columns
+
+    def test_aggregates_are_in_valid_range(self):
+        from src.features.builder import fit_interaction_aggregates
+
+        recs = make_recs_df()
+        game_aggs, user_aggs = fit_interaction_aggregates(recs)
+
+        assert game_aggs["game_recommend_rate"].between(0, 1).all()
+        assert user_aggs["user_recommend_rate"].between(0, 1).all()
+        assert (game_aggs["game_review_count"] > 0).all()
+
+
+class TestInteractionFeaturesWithPrecomputedAggs:
+    def test_uses_provided_aggregates(self):
+        from src.features.builder import _build_interaction_features, fit_interaction_aggregates
+
+        recs = make_recs_df()
+        game_aggs, user_aggs = fit_interaction_aggregates(recs)
+
+        # Modify an aggregate to verify it's used (not recomputed)
+        game_aggs_modified = game_aggs.copy()
+        game_aggs_modified["game_recommend_rate"] = 0.999
+
+        result = _build_interaction_features(recs, game_aggs=game_aggs_modified, user_aggs=user_aggs)
+        # The first row's app_id=730 should have game_recommend_rate=0.999
+        assert (result.loc[result["app_id"] == 730, "game_recommend_rate"] == 0.999).all()
+
+    def test_no_data_leakage_in_test_set(self):
+        """游戏同时出现在训练集和测试集时，测试集的聚合特征必须仅用训练集计算。"""
+        from src.features.builder import fit_interaction_aggregates, _build_interaction_features
+
+        # 训练集: app_id=730 有2条记录，推荐率=1.0 (2/2)
+        train_recs = pd.DataFrame({
+            "app_id": [730, 730, 570, 570, 440],
+            "user_id": [1, 2, 1, 3, 2],
+            "is_recommended": [1, 1, 1, 0, 0],
+            "hours": [100.0, 200.0, 50.0, 30.0, 10.0],
+        })
+        # 测试集: app_id=730 有1条记录，推荐=0
+        test_recs = pd.DataFrame({
+            "app_id": [730],
+            "user_id": [4],
+            "is_recommended": [0],
+            "hours": [5.0],
+        })
+
+        game_aggs, user_aggs = fit_interaction_aggregates(train_recs)
+        result = _build_interaction_features(test_recs, game_aggs=game_aggs, user_aggs=user_aggs)
+
+        # 测试集中 app_id=730 的 game_recommend_rate 应该来自训练集(1.0)，而非包含自身后的值
+        assert result.loc[0, "game_recommend_rate"] == 1.0
+        # 冷启动用户的聚合特征应填充默认值
+        assert result.loc[0, "user_recommend_rate"] == 0.5
+        assert result.loc[0, "user_review_count"] == 0
+
+
+class TestBuildFeaturesWithPrecomputedAggs:
+    def test_build_features_accepts_aggs(self):
+        from src.features.builder import build_features, fit_interaction_aggregates
+
+        recs = make_recs_df()
+        games = make_games_df()
+        users = make_users_df()
+
+        game_aggs, user_aggs = fit_interaction_aggregates(recs)
+        X, y, groups = build_features(recs, games, users,
+                                      game_aggs=game_aggs, user_aggs=user_aggs)
+
+        assert isinstance(X, pd.DataFrame)
+        assert len(X) == len(recs)
+        assert "game_recommend_rate" in X.columns
+        assert "user_recommend_rate" in X.columns
+
+
 class TestBuildPreprocessor:
     def test_returns_column_transformer(self):
         from src.features.builder import build_preprocessor

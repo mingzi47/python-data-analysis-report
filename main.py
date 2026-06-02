@@ -9,8 +9,8 @@ import pandas as pd
 from src.utils.config import Config
 from src.data.loader import download_dataset, load_games, load_users, load_recommendations, load_metadata
 from src.data.cleaner import clean_games, clean_users, clean_recommendations, merge_metadata
-from src.features.builder import build_features
-from src.models.trainer import split_data, train_logistic_regression, train_random_forest, train_xgboost
+from src.features.builder import build_features, fit_interaction_aggregates
+from src.models.trainer import split_data, split_recommendations, train_logistic_regression, train_random_forest, train_xgboost
 from src.models.baseline import evaluate_baselines
 from src.models.evaluator import evaluate_model, compare_models
 from src.analysis.helpers import (
@@ -109,15 +109,32 @@ def run_modeling(games_df, users_df, recs_df, config):
     print("阶段 5: 特征工程")
     print("=" * 60)
 
-    X, y, groups = build_features(recs_df, games_df, users_df)
-    print(f"特征矩阵: {X.shape}, 目标变量: {y.shape}")
+    # 步骤 1: 按用户分组拆分推荐记录（在特征工程之前，防止数据泄漏）
+    train_recs, test_recs = split_recommendations(
+        recs_df, test_size=config.test_size, random_state=config.random_seed
+    )
+    print(f"训练集记录: {len(train_recs):,}, 测试集记录: {len(test_recs):,}")
+
+    # 步骤 2: 仅在训练集上拟合交互聚合特征
+    game_aggs, user_aggs = fit_interaction_aggregates(train_recs)
+    print(f"游戏聚合: {len(game_aggs)} 款, 用户聚合: {len(user_aggs)} 位")
+
+    # 步骤 3: 分别构建训练集和测试集特征（测试集使用训练集的聚合值）
+    X_train, y_train, groups_train = build_features(
+        train_recs, games_df, users_df, game_aggs=game_aggs, user_aggs=user_aggs
+    )
+    X_test, y_test, groups_test = build_features(
+        test_recs, games_df, users_df, game_aggs=game_aggs, user_aggs=user_aggs
+    )
+    print(f"特征矩阵 - 训练集: {X_train.shape}, 测试集: {X_test.shape}")
+    # 检查冷启动比例（训练集中未出现的游戏/用户）
+    cold_start_games = X_test["game_review_count"].eq(0).mean()
+    cold_start_users = X_test["user_review_count"].eq(0).mean()
+    print(f"测试集冷启动比例: 游戏={cold_start_games:.1%}, 用户={cold_start_users:.1%}")
 
     print("\n" + "=" * 60)
     print("阶段 6: 建模")
     print("=" * 60)
-
-    X_train, X_test, y_train, y_test = split_data(X, y, groups, test_size=config.test_size)
-    print(f"训练集: {X_train.shape}, 测试集: {X_test.shape}")
 
     baseline_results = evaluate_baselines(X_train, y_train, X_test, y_test)
     print("\n基线模型结果:")
@@ -153,7 +170,7 @@ def run_modeling(games_df, users_df, recs_df, config):
     plot_confusion_matrix(best_model, X_test, y_test, str(config.figure_dir / "confusion_matrix.png"))
 
     if hasattr(best_model, "feature_importances_"):
-        feature_names = X.columns.tolist()
+        feature_names = X_train.columns.tolist()
         plot_feature_importance_15(
             best_model.feature_importances_,
             feature_names,
@@ -190,7 +207,7 @@ def run_modeling(games_df, users_df, recs_df, config):
         top_indices = importances.argsort()[-5:][::-1]
         print("\nTop 5 重要特征:")
         for i in top_indices:
-            print(f"  {X.columns[i]}: {importances[i]:.4f}")
+            print(f"  {X_train.columns[i]}: {importances[i]:.4f}")
 
     print(f"\n所有图表已保存至: {config.figure_dir}")
     print(f"模型对比表已保存至: {config.model_dir / 'comparison.csv'}")

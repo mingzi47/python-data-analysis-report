@@ -56,22 +56,68 @@ def _build_user_features(users: pd.DataFrame) -> pd.DataFrame:
     return feats
 
 
-def _build_interaction_features(recs: pd.DataFrame) -> pd.DataFrame:
-    df = recs.copy()
+def fit_interaction_aggregates(recs: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """仅在训练集上计算游戏/用户聚合特征，防止数据泄漏。
 
-    game_aggs = df.groupby("app_id").agg(
+    聚合结果可传给 ``_build_interaction_features`` 和 ``build_features``
+    用于训练集和测试集的特征构建。
+
+    Parameters
+    ----------
+    recs : pd.DataFrame
+        训练集推荐记录（包含 app_id, user_id, is_recommended, hours 列）
+
+    Returns
+    -------
+    game_aggs : pd.DataFrame (index=app_id)
+        game_review_count, game_recommend_rate, game_avg_hours
+    user_aggs : pd.DataFrame (index=user_id)
+        user_review_count, user_recommend_rate, user_avg_hours
+    """
+    game_aggs = recs.groupby("app_id").agg(
         game_review_count=("is_recommended", "count"),
         game_recommend_rate=("is_recommended", "mean"),
         game_avg_hours=("hours", "mean"),
     )
-    user_aggs = df.groupby("user_id").agg(
+    user_aggs = recs.groupby("user_id").agg(
         user_review_count=("is_recommended", "count"),
         user_recommend_rate=("is_recommended", "mean"),
         user_avg_hours=("hours", "mean"),
     )
+    return game_aggs, user_aggs
+
+
+def _build_interaction_features(
+    recs: pd.DataFrame,
+    game_aggs: pd.DataFrame | None = None,
+    user_aggs: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    df = recs.copy()
+
+    if game_aggs is None:
+        game_aggs = df.groupby("app_id").agg(
+            game_review_count=("is_recommended", "count"),
+            game_recommend_rate=("is_recommended", "mean"),
+            game_avg_hours=("hours", "mean"),
+        )
+    if user_aggs is None:
+        user_aggs = df.groupby("user_id").agg(
+            user_review_count=("is_recommended", "count"),
+            user_recommend_rate=("is_recommended", "mean"),
+            user_avg_hours=("hours", "mean"),
+        )
 
     df = df.merge(game_aggs, on="app_id", how="left")
     df = df.merge(user_aggs, on="user_id", how="left")
+
+    # 填充冷启动的游戏/用户（训练集中未出现）
+    for col, default in [
+        ("game_review_count", 0), ("game_recommend_rate", 0.5), ("game_avg_hours", 0.0),
+        ("user_review_count", 0), ("user_recommend_rate", 0.5), ("user_avg_hours", 0.0),
+    ]:
+        if col in df.columns:
+            df[col] = df[col].fillna(default)
+
     return df
 
 
@@ -79,13 +125,40 @@ def build_features(
     recommendations: pd.DataFrame,
     games: pd.DataFrame,
     users: pd.DataFrame,
+    game_aggs: pd.DataFrame | None = None,
+    user_aggs: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    """构建特征矩阵 X、目标变量 y、分组标签 groups。
+
+    为防止数据泄漏，训练集和测试集的特征构建应分开进行：
+    - **训练集**: 不传 game_aggs/user_aggs（交互聚合从训练集自身计算）
+    - **测试集**: 传入 fit_interaction_aggregates(train_recs) 的结果
+
+    Parameters
+    ----------
+    recommendations : pd.DataFrame
+        推荐记录（训练集或测试集）
+    games : pd.DataFrame
+        游戏信息
+    users : pd.DataFrame
+        用户信息
+    game_aggs : pd.DataFrame or None
+        预计算的游戏聚合特征（来自训练集），None 时从 recommendations 计算
+    user_aggs : pd.DataFrame or None
+        预计算的用户聚合特征（来自训练集），None 时从 recommendations 计算
+
+    Returns
+    -------
+    X : pd.DataFrame, y : pd.Series, groups : pd.Series
+    """
     y = recommendations["is_recommended"].astype(int)
     groups = recommendations["user_id"]
 
     game_feats = _build_game_features(games)
     user_feats = _build_user_features(users)
-    inter_feats = _build_interaction_features(recommendations)
+    inter_feats = _build_interaction_features(
+        recommendations, game_aggs=game_aggs, user_aggs=user_aggs
+    )
 
     X = inter_feats.merge(game_feats, left_on="app_id", right_index=True, how="left")
     X = X.merge(user_feats, left_on="user_id", right_index=True, how="left")

@@ -16,6 +16,30 @@ def split_data(X, y, groups, test_size=0.2, random_state=42):
     return X_train, X_test, y_train, y_test
 
 
+def split_recommendations(recs, test_size=0.2, random_state=42):
+    """在特征工程之前，按用户分组拆分推荐记录。
+
+    这是防止数据泄漏的关键步骤 — 必须在构建交互特征之前拆分，
+    确保测试集的聚合特征仅从训练集计算。
+
+    Parameters
+    ----------
+    recs : pd.DataFrame
+        完整推荐记录（必须包含 user_id 列）
+    test_size : float
+        测试集比例 (default 0.2)
+    random_state : int
+        随机种子
+
+    Returns
+    -------
+    train_recs : pd.DataFrame, test_recs : pd.DataFrame
+    """
+    gss = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=random_state)
+    train_idx, test_idx = next(gss.split(recs, groups=recs["user_id"]))
+    return recs.iloc[train_idx], recs.iloc[test_idx]
+
+
 def train_logistic_regression(X_train, y_train):
     model = LogisticRegression(max_iter=2000, random_state=42)
     model.fit(X_train, y_train)
